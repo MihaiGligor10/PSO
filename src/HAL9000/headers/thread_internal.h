@@ -36,7 +36,7 @@ typedef struct _THREAD
     REF_COUNT               RefCnt;
 
     struct _THREAD          *Self;
-
+     
     TID                     Id;
     char*                   Name;
 

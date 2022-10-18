@@ -10,9 +10,9 @@
 #include "gdtmu.h"
 #include "pe_exports.h"
 
-#define TID_INCREMENT               4
+#define TID_INCREMENT               10
 
-#define THREAD_TIME_SLICE           1
+#define THREAD_TIME_SLICE           4
 
 extern void ThreadStart();
 
@@ -28,6 +28,8 @@ extern FUNC_ThreadSwitch            ThreadSwitch;
 typedef struct _THREAD_SYSTEM_DATA
 {
     LOCK                AllThreadsLock;
+
+    QWORD               TotalNrOfThreads ; 
 
     _Guarded_by_(AllThreadsLock)
     LIST_ENTRY          AllThreadsList;
@@ -331,6 +333,8 @@ ThreadCreateEx(
         LOG_FUNC_ERROR("_ThreadInit", status);
         return status;
     }
+
+   // LOG("Thread created"); /////////////////////////////////////////////////////////////////////////
 
     ProcessInsertThreadInList(Process, pThread);
 
@@ -802,19 +806,28 @@ _ThreadInit(
     }
     __finally
     {
+
         if (!SUCCEEDED(status))
         {
             if (NULL != pThread)
             {
                 _ThreadDereference(pThread);
                 pThread = NULL;
+               
             }
+            
         }
-
+        else
+        {
+            LOG("Thread 0x%X with name %s just started \n", pThread->Id, pThread->Name);
+        }
+       
         *Thread = pThread;
-
+        
         LOG_FUNC_END;
     }
+
+    
 
     return status;
 }
@@ -1186,6 +1199,7 @@ _ThreadDestroy(
 
     ASSERT(NULL != pThread);
     ASSERT(NULL == Context);
+    LOG("Thread 0x%X with name %s was just destroyed \n", pThread->Id, pThread->Name);
 
     LockAcquire(&m_threadSystemData.AllThreadsLock, &oldState);
     RemoveEntryList(&pThread->AllList);
