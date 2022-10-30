@@ -81,10 +81,10 @@ STATUS
 SyscallProcessCreate(
     IN_READS_Z(PathLength)
                 char*               ProcessPath,
-    IN          DWORD               PathLength,
+    IN          QWORD               PathLength,
     IN_READS_OPT_Z(ArgLength)
                 char*               Arguments,
-    IN          DWORD               ArgLength,
+    IN          QWORD               ArgLength,
     OUT         UM_HANDLE*          ProcessHandle
     )
 {
@@ -127,10 +127,12 @@ SyscallVirtualAlloc(
     IN          QWORD                   Size,
     IN          VMM_ALLOC_TYPE          AllocType,
     IN          PAGE_RIGHTS             PageRights,
-    IN_OPT      UM_HANDLE               FileHandle
+    IN_OPT      UM_HANDLE               FileHandle,
+    IN_OPT      QWORD                   Key,
+    OUT         PVOID*                  AllocatedAddress
     )
 {
-    return SyscallEntry(SyscallIdVirtualAlloc, BaseAddress, Size, AllocType, PageRights, FileHandle);
+    return SyscallEntry(SyscallIdVirtualAlloc, BaseAddress, Size, AllocType, PageRights, FileHandle, Key, AllocatedAddress);
 }
 
 // SyscallIdVirtualFree
@@ -151,7 +153,7 @@ STATUS
 SyscallFileCreate(
     IN_READS_Z(PathLength)
                 char*                   Path,
-    IN          DWORD                   PathLength,
+    IN          QWORD                   PathLength,
     IN          BOOLEAN                 Directory,
     IN          BOOLEAN                 Create,
     OUT         UM_HANDLE*              FileHandle

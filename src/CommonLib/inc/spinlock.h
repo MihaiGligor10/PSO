@@ -1,5 +1,6 @@
 #pragma once
 
+C_HEADER_START
 #pragma pack(push,16)
 typedef struct _SPINLOCK
 {
@@ -77,3 +78,4 @@ SpinlockRelease(
     INOUT       PSPINLOCK       Lock,
     IN          INTR_STATE      OldIntrState
     );
+C_HEADER_END

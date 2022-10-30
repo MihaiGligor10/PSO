@@ -37,6 +37,8 @@
 
 #pragma pack(push,1)
 
+#pragma warning(push)
+
 // warning C4201: nonstandard extension used: nameless struct/union
 #pragma warning(disable:4201)
 
@@ -321,8 +323,7 @@ typedef struct _TX_DATA
     LOCK                                    TxInterruptLock;
 } TX_DATA, *PTX_DATA;
 
-#pragma warning(default:4214)
-#pragma warning(default:4201)
+#pragma warning(pop)
 
 typedef struct _ETH_DEVICE
 {

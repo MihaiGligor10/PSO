@@ -40,7 +40,6 @@ typedef struct _PCI_DEVICE_DESCRIPTION
 //               function will return STATUS_DEVICE_NO_MORE_DEVICES until a call
 //               with ResetSearch == TRUE will be made.
 //******************************************************************************
-SAL_SUCCESS
 STATUS
 PciRetrieveNextDevice(
     IN      BOOLEAN         ResetSearch,

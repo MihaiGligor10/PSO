@@ -7,7 +7,7 @@
 
 // +1 because of NULL terminator
 static const char REGISTER_NAMES[RegisterR15 + 1][MAX_REGISTER_NAME_LENGTH + 1] = { "RAX", "RCX", "RDX", "RBX", "RSP", "RBP", "RSI", "RDI",
-                                                                                    "R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15" 
+                                                                                    "R8", "R9", "R10", "R11", "R12", "R13", "R14", "R15"
                                                                                     };
 
 static const char CPUID_LEAF_NAMES[][MAX_LEAF_NAME_LENGTH] = { "Basic Information", "Feature Information", "Cache Information", "Reserved", "Deterministic Cache",
@@ -44,13 +44,28 @@ RetrieveRegisterName(
 }
 
 void
-DumpProcessorState(
-    IN  PROCESSOR_STATE*    ProcessorState
+DumpRegisterArea(
+    IN  REGISTER_AREA*                  RegisterArea
     )
 {
-    STATUS status;
-    QWORD regValue;
-    DWORD i;
+    ASSERT(RegisterArea != NULL);
+
+    for (DWORD i = 0; i <= RegisterR15; ++i)
+    {
+        QWORD regValue = RegisterArea->RegisterValues[i];
+
+        LOG("%s: 0x%X\n", RetrieveRegisterName(i), regValue);
+    }
+
+    LOG("RIP: 0x%X\n", RegisterArea->Rip);
+    LOG("Rflags: 0x%X\n", RegisterArea->Rflags);
+}
+
+void
+DumpProcessorState(
+    IN  COMPLETE_PROCESSOR_STATE*    ProcessorState
+    )
+{
     INTR_STATE intrState;
 
     ASSERT( NULL != ProcessorState);
@@ -58,20 +73,8 @@ DumpProcessorState(
     intrState = DumpTakeLock();
     LOG("\nProcessor State:\n");
 
+    DumpRegisterArea(&ProcessorState->RegisterArea);
 
-
-    for (i = 0; i <= RegisterR15; ++i)
-    {
-        status = STATUS_SUCCESS;
-        regValue = ProcessorState->RegisterValues[i];
-        ASSERT(SUCCEEDED(status));
-
-
-        LOG("%s: 0x%X\n", RetrieveRegisterName(i), regValue);
-    }
-
-    LOG("RIP: 0x%X\n", ProcessorState->Rip);
-    LOG("Rflags: 0x%X\n", ProcessorState->Rflags);
     DumpReleaseLock(intrState);
 }
 

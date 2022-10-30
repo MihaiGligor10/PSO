@@ -1,5 +1,6 @@
 #pragma once
 
+C_HEADER_START
 #pragma pack(push,8)
 typedef struct _DATE
 {
@@ -29,3 +30,4 @@ TimeGetStringFormattedBuffer(
     OUT_WRITES_Z(BufferSize)    char*           Buffer,
     IN                          DWORD           BufferSize
     );
+C_HEADER_END

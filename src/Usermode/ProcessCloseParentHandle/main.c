@@ -38,9 +38,8 @@ __main(
                 __leave;
             }
 
-            /// TODO: this path
-            status = SyscallProcessCreate("dummy.exe",
-                                          0,
+            status = SyscallProcessCreate("Proces~3.exe",
+                                          sizeof("Proces~3.exe"),
                                           argBuffer,
                                           MAX_PATH,
                                           &hProcess);

@@ -7,7 +7,6 @@
                                                                            ((QWORD)(Dev)<<15)     + \
                                                                            ((QWORD)(Func)<<12))
 
-SAL_SUCCESS
 STATUS
 PciExpressRetrieveNextDevice(
     IN      PPCI_ROOT_COMPLEX           PciRootComplex,

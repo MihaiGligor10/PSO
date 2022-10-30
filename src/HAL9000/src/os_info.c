@@ -2,7 +2,6 @@
 #include "os_info.h"
 #include "display.h"
 #include "os_time.h"
-#include "string.h"
 #include "rtc.h"
 #include "iomu.h"
 
@@ -48,7 +47,6 @@ OsInfoPreinit(
     _OsInfoUpdateTime();
 }
 
-SAL_SUCCESS
 STATUS
 OsInfoInit(
     void

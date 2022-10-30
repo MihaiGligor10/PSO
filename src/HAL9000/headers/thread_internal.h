@@ -4,6 +4,7 @@
 #include "ref_cnt.h"
 #include "ex_event.h"
 #include "thread.h"
+#include "mutex.h"
 
 typedef enum _THREAD_STATE
 {
@@ -35,11 +36,15 @@ typedef struct _THREAD
 {
     REF_COUNT               RefCnt;
 
+    struct _THREAD          *Self;
+     
     TID                     Id;
     char*                   Name;
 
     // Currently the thread priority is not used for anything
     THREAD_PRIORITY         Priority;
+    THREAD_PRIORITY         RealPriority;  /////////////////////////////////
+
     THREAD_STATE            State;
 
     // valid only if State == ThreadStateTerminated
@@ -48,7 +53,12 @@ typedef struct _THREAD
 
     volatile THREAD_FLAGS   Flags;
 
-    // Lock which ensures there are no race conditions between a thread that
+    MUTEX                  AuxMutex;
+
+
+    // Lock which ensures there are no race cond
+    // 
+    // itions between a thread that
     // blocks and a thread on another CPU which wants to unblock it
     LOCK                    BlockLock;
 
@@ -60,6 +70,15 @@ typedef struct _THREAD
 
     // List of the threads in the same process
     LIST_ENTRY              ProcessList;
+
+    _Guarded_by_(AuxMutex)
+    LIST_ENTRY              AcquiredMutexesList;////////////////////////////////
+
+
+    PMUTEX                  WaitedMutex;///////////////////////////////////////////
+
+   
+
 
     // Incremented on each clock tick for the running thread
     QWORD                   TickCountCompleted;
@@ -250,12 +269,13 @@ ThreadExecuteForEachThreadEntry(
     IN_OPT  PVOID               Context
     );
 
-//******************************************************************************
+
+//******************************************************************************O
 // Function:     GetCurrentThread
 // Description:  Returns the running thread.
 // Returns:      void
 //******************************************************************************
-#define GetCurrentThread()      ((THREAD*)__readmsr(IA32_FS_BASE_MSR))
+#define GetCurrentThread()      ((THREAD*)__HALreadfsqword(FIELD_OFFSET(THREAD, Self)))
 
 //******************************************************************************
 // Function:     SetCurrentThread

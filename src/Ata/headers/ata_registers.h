@@ -87,6 +87,8 @@ typedef enum _ATA_REGISTER
 // PRD (Physical Region Descriptor)
 #pragma pack(push,1)
 
+#pragma warning(push)
+
 // warning C4201: nonstandard extension used: nameless struct/union
 #pragma warning(disable:4201)
 
@@ -116,6 +118,5 @@ typedef union _PRD_ENTRY
 } PRD_ENTRY, *PPRD_ENTRY;
 STATIC_ASSERT(ATA_PRD_ENTRY_PREDEFINED_SIZE == sizeof(PRD_ENTRY));
 
-#pragma warning(default:4201)
-
+#pragma warning(pop)
 #pragma pack(pop)

@@ -1,5 +1,6 @@
 #pragma once
 
+C_HEADER_START
 #include "rw_spinlock.h"
 
 #pragma pack(push,16)
@@ -37,7 +38,7 @@ _When_(Exclusive, ACQUIRES_EXCL_AND_REENTRANT_LOCK(*Spinlock))
 _When_(!Exclusive, ACQUIRES_SHARED_AND_NON_REENTRANT_LOCK(*Spinlock))
 void
 RecRwSpinlockAcquire(
-    INOUT   PREC_RW_SPINLOCK    Spinlock,
+    INOUT   REC_RW_SPINLOCK     *Spinlock,
     OUT     INTR_STATE*         IntrState,
     IN      BOOLEAN             Exclusive
     );
@@ -49,10 +50,11 @@ _When_(Exclusive, REQUIRES_EXCL_LOCK(*Spinlock) RELEASES_EXCL_AND_REENTRANT_LOCK
 _When_(!Exclusive, REQUIRES_SHARED_LOCK(*Spinlock) RELEASES_SHARED_AND_NON_REENTRANT_LOCK(*Spinlock))
 void
 RecRwSpinlockRelease(
-    INOUT   PREC_RW_SPINLOCK    Spinlock,
+    INOUT   REC_RW_SPINLOCK     *Spinlock,
     IN      INTR_STATE          IntrState,
     IN      BOOLEAN             Exclusive
     );
 
 #define RecRwSpinlockReleaseShared(Lck,Intr)      RecRwSpinlockRelease((Lck),(Intr),FALSE)
 #define RecRwSpinlockReleaseExclusive(Lck,Intr)   RecRwSpinlockRelease((Lck),(Intr),TRUE)
+C_HEADER_END

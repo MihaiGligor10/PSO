@@ -5,7 +5,6 @@ CorePreinit(
     void
     );
 
-SAL_SUCCESS
 STATUS
 CoreInit(
     void

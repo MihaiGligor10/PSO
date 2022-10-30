@@ -1,3 +1,8 @@
+#ifdef CL_NO_RUNTIME_CHECKS
+// warning C4206: nonstandard extension used: translation unit is empty
+#pragma warning(disable:4206)
+#else
+
 #include "common_lib.h"
 
 extern UINT64 __security_cookie;
@@ -40,3 +45,4 @@ GSNotifyStackChange(
         }
     }
 }
+#endif // CL_NO_RUNTIME_CHECKS

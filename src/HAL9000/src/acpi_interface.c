@@ -107,7 +107,6 @@ AcpiInterfacePreinit(
     InitializeListHead(&m_acpiData.PrtList);
 }
 
-SAL_SUCCESS
 STATUS
 AcpiInterfaceInit(
     void
@@ -190,7 +189,6 @@ AcpiShutdown(
     NOT_REACHED;
 }
 
-SAL_SUCCESS
 STATUS
 AcpiInterfaceLateInit(
     void
@@ -235,15 +233,13 @@ AcpiInterfaceLateInit(
     status = _AcpiInterfaceParsePrts();
     if (!SUCCEEDED(status))
     {
-        LOG_FUNC_ERROR("_AcpiInterfaceParsePrts", status);
-        return status;
+        LOG_WARNING("_AcpiInterfaceParsePrts failed with status 0x%x\n", status);
     }
     LOGL("Successfully parsed PRTs\n");
 
     return status;
 }
 
-SAL_SUCCESS
 STATUS
 AcpiRetrieveNextCpu(
     IN      BOOLEAN                     RestartSearch,
@@ -277,7 +273,6 @@ AcpiRetrieveNextCpu(
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 AcpiRetrieveNextIoApic(
     IN      BOOLEAN                     RestartSearch,
@@ -311,7 +306,6 @@ AcpiRetrieveNextIoApic(
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 AcpiRetrieveNextInterruptOverride(
     IN      BOOLEAN                         RestartSearch,
@@ -345,7 +339,6 @@ AcpiRetrieveNextInterruptOverride(
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 AcpiRetrieveNextMcfgEntry(
     IN      BOOLEAN                     RestartSearch,
@@ -379,7 +372,6 @@ AcpiRetrieveNextMcfgEntry(
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 AcpiRetrieveNextPrtEntry(
     IN      BOOLEAN                     RestartSearch,
@@ -592,7 +584,7 @@ _AcpiInterfaceParsePrts(
     acpiStatus = AcpiEvaluateObject(NULL, "\\_PIC", &argList, NULL);
     if (ACPI_FAILURE(acpiStatus))
     {
-        LOG_FUNC_ERROR("AcpiEvaluateObject", acpiStatus);
+        LOG_WARNING("AcpiEvaluateObject failed with status 0x%x - Couldn't locate ACPI \\\\_PIC method\n", acpiStatus);
         return STATUS_UNSUCCESSFUL;
     }
 
@@ -703,8 +695,11 @@ _AcpiInterfaceDeviceWalkCallback(
                     LOG_FUNC_ERROR("IoGetPciDevicesMatchingLocation", status);
                     acpiStatus = AE_BAD_DATA;
                 }
+                else
+                {
+                    acpiStatus = AE_OK;
+                }
 
-                acpiStatus = AE_OK;
                 __leave;
             }
         }

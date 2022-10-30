@@ -26,7 +26,6 @@ _NetDispatchChangeDeviceStatus(
     IN                                      PNET_GET_SET_DEVICE_STATUS  DeviceStatus
     );
 
-SAL_SUCCESS
 STATUS
 NetPortDeviceControl(
     INOUT       PDEVICE_OBJECT          DeviceObject,

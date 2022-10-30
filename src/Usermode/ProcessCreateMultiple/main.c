@@ -25,6 +25,8 @@ __main(
     {
         for (DWORD i = 0; i < PROCESSES_TO_CREATE; ++i)
         {
+            STATUS termStatus;
+
             status = SyscallProcessCreate("dummy.exe",
                                           sizeof("dummy.exe"),
                                           NULL,
@@ -39,6 +41,13 @@ __main(
             if (hProcess[i] == UM_INVALID_HANDLE_VALUE)
             {
                 LOG_ERROR("0x%X is not a valid handle value for a process!\n", UM_INVALID_HANDLE_VALUE);
+                __leave;
+            }
+
+            status = SyscallProcessWaitForTermination(hProcess[i], &termStatus);
+            if (!SUCCEEDED(status))
+            {
+                LOG_FUNC_ERROR("SyscallProcessWaitForTermination", status);
                 __leave;
             }
         }

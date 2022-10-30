@@ -50,8 +50,11 @@ GdtMuInit(
         }
     }
 
-    GdtReload(GdtMuRetrieveSelectorIndex(SelPrivillegeSupervisor, SelOpMode64, SelTypeCode), 
-              GdtMuRetrieveSelectorIndex(SelPrivillegeSupervisor, SelOpMode64, SelTypeData));
+    GdtMuReload(
+        GdtMuRetrieveSelectorIndex(SelPrivillegeSupervisor, SelOpMode64, SelTypeCode),
+        GdtMuRetrieveSelectorIndex(SelPrivillegeSupervisor, SelOpMode64, SelTypeData),
+        TRUE,
+        TRUE);
 
     m_selectorIndex = selIdx + sizeof(SEGMENT_DESCRIPTOR);
 
@@ -108,4 +111,26 @@ GdtMuRetrieveSelectorIndex(
                 Mode * SelTypeReserved +
                 Type
                 ) * sizeof(SEGMENT_DESCRIPTOR));
+}
+
+void
+GdtMuReload(
+    IN          WORD            CodeSelector,
+    IN          WORD            DataSelector,
+    IN          BOOLEAN         PreserveGsBase,
+    IN          BOOLEAN         PreserveFsBase
+    )
+{
+    // The initialization is done just because the compiler is retarded :)
+    // It thinks we might write the oldGs/FsBase values without reading them
+    QWORD oldGsBase = 0;
+    QWORD oldFsBase = 0;
+
+    if (PreserveGsBase) oldGsBase = __readmsr(IA32_GS_BASE_MSR);
+    if (PreserveFsBase) oldFsBase = __readmsr(IA32_FS_BASE_MSR);
+
+    GdtReload(CodeSelector, DataSelector);
+
+    if (PreserveGsBase) __writemsr(IA32_GS_BASE_MSR, oldGsBase);
+    if (PreserveFsBase) __writemsr(IA32_FS_BASE_MSR, oldFsBase);
 }

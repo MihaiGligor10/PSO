@@ -2,7 +2,6 @@
 #include "print.h"
 #include "display.h"
 #include "va_list.h"
-#include "string.h"
 #include "synch.h"
 
 #define SCREEN_BUFFER_SIZE          MAX_PATH

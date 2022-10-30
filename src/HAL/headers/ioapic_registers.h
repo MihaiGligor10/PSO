@@ -12,6 +12,8 @@
 
 #pragma pack(push,1)
 
+#pragma warning(push)
+
 // warning C4214: nonstandard extension used: bit field types other than int
 #pragma warning(disable:4214)
 
@@ -26,7 +28,7 @@ STATIC_ASSERT(sizeof(IO_APIC_REGISTER) == PREDEFINED_IO_APIC_REGISTER_SIZE);
 
 typedef union _IO_APIC_REG_SEL
 {
-    struct  
+    struct
     {
         BYTE                    ApicAddress;
         BYTE                    __Reserved[3];
@@ -37,7 +39,7 @@ STATIC_ASSERT(sizeof(IO_APIC_REG_SEL) == PREDEFINED_IO_APIC_USABLE_REGISTER_SIZE
 
 typedef union _IO_APIC_ID_REGISTER
 {
-    struct  
+    struct
     {
         BYTE                __Reserved0[3];
 
@@ -50,7 +52,7 @@ STATIC_ASSERT(sizeof(IO_APIC_ID_REGISTER) == PREDEFINED_IO_APIC_USABLE_REGISTER_
 
 typedef union _IO_APIC_VERSION_REGISTER
 {
-    struct  
+    struct
     {
         BYTE                ApicVersion;
 
@@ -167,7 +169,7 @@ typedef union _IO_APIC_REDIR_TABLE_ENTRY
         // 1, Logical Mode IOREDTBLx[63:56] = Set of processors
         QWORD                   Destination             :  8;
     };
-    struct  
+    struct
     {
         DWORD                   LowDword;
         DWORD                   HighDword;
@@ -188,6 +190,5 @@ typedef struct _IO_APIC
     IO_APIC_REGISTER        IoRegEOI;
 } IO_APIC, *PIO_APIC;
 
-#pragma warning(default:4201)
-#pragma warning(default:4214)
+#pragma warning(pop)
 #pragma pack(pop)

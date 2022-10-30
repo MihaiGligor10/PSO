@@ -1,7 +1,6 @@
 #include "HAL9000.h"
 #include "thread_internal.h"
 #include "cpumu.h"
-#include "memory.h"
 #include "mmu.h"
 #include "gdtmu.h"
 #include "smp.h"
@@ -16,6 +15,8 @@
 
 #define IA32_EXPECTED_PAT_VALUES    0x0007'0406'0007'0406ULL
 
+#define HAL9000_USED_XCR0_FEATURES           (XCR0_SAVED_STATE_x87_MMX | XCR0_SAVED_STATE_SSE)
+
 typedef struct _CPUMU_DATA
 {
     CPUID_BASIC_INFORMATION                         BasicInformation;
@@ -24,6 +25,7 @@ typedef struct _CPUMU_DATA
     CPUID_STRUCTURED_EXTENDED_FEATURE_FLAGS_LEAF    StructuredExtendedFeatures;
     CPUID_EXTENDED_CPUID_INFORMATION                ExtendedCpuidInformation;
     CPUID_EXTENDED_FEATURE_INFORMATION              ExtendedFeatureInformation;
+    CPUID_EXTENDED_STATE_ENUMERATION_MAIN_LEAF      ExtendedStateMainLeaf;
 } CPUMU_DATA, *PCPMU_DATA;
 
 static CPUMU_DATA m_cpuMuData;
@@ -62,14 +64,13 @@ _CpuActivateAvailableFeatures(
     LOG("EFER is 0x%X\n", __readmsr(IA32_EFER));
 }
 
+__forceinline
+static
 void
-CpuMuPreinit(
+_CpuMuCollectBasicInformation(
     void
     )
 {
-    memzero(&m_cpuMuData, sizeof(CPUMU_DATA));
-
-    // Basic information
     __cpuid((int*) &m_cpuMuData.BasicInformation, CpuidIdxBasicInformation);
 
     if (m_cpuMuData.BasicInformation.MaxValueForBasicInfo >= CpuidIdxFeatureInformation)
@@ -87,18 +88,71 @@ CpuMuPreinit(
         __cpuid((int*)&m_cpuMuData.StructuredExtendedFeatures, CpuidIdxStructuredExtendedFeaturesLeaf);
     }
 
-    // Extended information
+    if (m_cpuMuData.BasicInformation.MaxValueForBasicInfo >= CpuidIdxExtendedStateEnumerationMainLeaf)
+    {
+        __cpuidex((int*)&m_cpuMuData.ExtendedStateMainLeaf, CpuidIdxExtendedStateEnumerationMainLeaf, 0x0);
+    }
+}
+
+__forceinline
+static
+void
+_CpuMuCollectExtendedInformation(
+    void
+    )
+{
     __cpuid((int*) &m_cpuMuData.ExtendedCpuidInformation, CpuidIdxExtendedMaxFunction);
 
     if (m_cpuMuData.ExtendedCpuidInformation.MaxValueForExtendedInfo >= CpuidIdxExtendedFeatureInformation)
     {
         __cpuid((int*) &m_cpuMuData.ExtendedFeatureInformation, CpuidIdxExtendedFeatureInformation);
     }
+}
 
-    SetCurrentPcpu(NULL);
+// this has nothing to do with the thread system, it is a `hack` used to
+// have the same consistency through GetCurrentThread() calls since
+// `CpuMuPreInit` was called until the first thread is setup on the CPU in
+// `ThreadSystemInitMainForCurrentCPU`
+// This DUMMY_THREAD will be the thread of both the DUMMY_CPU and the real CPU until
+// the threading system is set up
+
+// PS: next year we might want to create a real `THREAD_HEADER` structure in `thread_internal.h` to have a cleaner solution
+// However, as not to confuse people by updating the `THREAD` structure after the semester has started this is the current solution
+typedef struct _DUMMY_THREAD
+{
+    REF_COUNT               RefCnt;
+
+    struct _THREAD* Self;
+} DUMMY_THREAD;
+static_assert(sizeof(DUMMY_THREAD) == FIELD_OFFSET(THREAD, Id) && FIELD_OFFSET(DUMMY_THREAD, Self) == FIELD_OFFSET(THREAD, Self),
+    "Safety measure, if someone modified the THREAD structure we may need to modify this DUMMY_THREAD as well");
+
+// mark .Self as NULL such that GetCurrentThread will return always NULL until we setup the first real thread later in the boot
+// set up both for dummy CPU and for the real CPU structure until threading system is initialized
+static DUMMY_THREAD __dummySelfThread = { .Self = NULL };
+
+void
+CpuMuPreinit(
+    void
+    )
+{
+    static PCPU* __dummySelfCpu = NULL;
+
+    memzero(&m_cpuMuData, sizeof(CPUMU_DATA));
+
+    // Basic information
+    _CpuMuCollectBasicInformation();
+
+    // Extended information
+    _CpuMuCollectExtendedInformation();
+
+    // We cannot have the current CPU NULL because we always dereference the first field
+    //  => use static dummy PCPU which has the first field NULL
+    SetCurrentPcpu(&__dummySelfCpu);
+
     // we're not using the SetCurrentThread macro because it will
     // try to dereference the PCPU pointer
-    __writemsr(IA32_FS_BASE_MSR,NULL);
+    __writemsr(IA32_FS_BASE_MSR, &__dummySelfThread);
 }
 
 void
@@ -106,8 +160,6 @@ CpuMuValidateConfiguration(
     void
     )
 {
-    ASSERT_INFO( CpuIsIntel(), "Who the hell wants to run on an AMD??");
-
     ASSERT_INFO( m_cpuMuData.FeatureInformation.edx.APIC, "We cannot wake up APs without APIC!");
 
     ASSERT_INFO( m_cpuMuData.FeatureInformation.edx.MSR, "We cannot do anything without MSRs!");
@@ -122,7 +174,16 @@ CpuMuValidateConfiguration(
 
     ASSERT_INFO( m_cpuMuData.FeatureInformation.edx.SSE2, "We need LFENCE/MFENCE support");
 
-    ASSERT_INFO( m_cpuMuData.FeatureInformation.ecx.PCID, "Things are too slow without PCID support");
+#if INCLUDE_FP_SUPPORT
+    ASSERT_INFO( m_cpuMuData.FeatureInformation.ecx.XSAVE, "We need XSAVE/XRSTOR support");
+
+    ASSERT_INFO(IsBooleanFlagOn(
+        DWORDS_TO_QWORD(m_cpuMuData.ExtendedStateMainLeaf.Xcr0FeatureSupportHigh, m_cpuMuData.ExtendedStateMainLeaf.Xcr0FeatureSupportLow),
+        HAL9000_USED_XCR0_FEATURES),
+        "We need to support 0x%X, however we only have support for 0x%X\n",
+        HAL9000_USED_XCR0_FEATURES,
+        DWORDS_TO_QWORD(m_cpuMuData.ExtendedStateMainLeaf.Xcr0FeatureSupportHigh, m_cpuMuData.ExtendedStateMainLeaf.Xcr0FeatureSupportLow));
+#endif
 
     ASSERT_INFO( m_cpuMuData.ExtendedFeatureInformation.edx.Syscall, "We need SYSCALL/SYSRET support");
 }
@@ -219,6 +280,7 @@ CpuMuAllocCpu(
         return STATUS_MEMORY_CANNOT_BE_MAPPED;
     }
 
+    pPcpu->Self = pPcpu;
     pPcpu->ApicId = ApicId;
     pPcpu->LogicalApicId = ( 1U << ApicId );
 
@@ -281,7 +343,7 @@ CpuMuInitCpu(
 
     // write CPU structure to GS
     SetCurrentPcpu(PhysicalCpu);
-    SetCurrentThread(NULL);
+    SetCurrentThread((PTHREAD)&__dummySelfThread);
 
     // we assume we haven't used more than 1 PAGE of our stack
     if (ChangeStack)
@@ -337,6 +399,22 @@ CpuMuChangeStack(
     // __security_cookie ^ OldRSP ^ NewRSP != __security_cookie => we will have a spurious
     // cookie corruption
     GSNotifyStackChange(oldStackBase, NewStack, PAGE_SIZE);
+}
+
+BOOLEAN
+CpuMuIsPcidFeaturePresent(
+    void
+    )
+{
+    return (m_cpuMuData.FeatureInformation.ecx.PCID == 1);
+}
+
+STATUS
+CpuMuActivateFpuFeatures(
+    void
+    )
+{
+    return HalSetActiveFpuFeatures(HAL9000_USED_XCR0_FEATURES);
 }
 
 static

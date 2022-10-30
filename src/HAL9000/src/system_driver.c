@@ -2,7 +2,6 @@
 #include "io.h"
 #include "system_driver.h"
 
-SAL_SUCCESS
 STATUS
 (__cdecl SystemDriverEntry)(
     INOUT       PDRIVER_OBJECT      DriverObject

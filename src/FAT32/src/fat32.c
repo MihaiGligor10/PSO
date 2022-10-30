@@ -4,7 +4,7 @@
 
 FUNC_DriverDispatch     _FatDispatchCreate;
 FUNC_DriverDispatch     _FatDispatchClose;
-FUNC_DriverDispatch     _FatDispatchRead;
+FUNC_DriverDispatch     _FatDispatchReadWrite;
 FUNC_DriverDispatch     _FatDispatchQueryInformation;
 FUNC_DriverDispatch     _FatDispatchDirectoryControl;
 
@@ -18,7 +18,6 @@ typedef struct _FCB
     FILE_INFORMATION    FileInformation;
 } FCB, *PFCB;
 
-SAL_SUCCESS
 STATUS
 (__cdecl FatDriverEntry)(
     INOUT       PDRIVER_OBJECT      DriverObject
@@ -48,7 +47,8 @@ STATUS
 
     DriverObject->DispatchFunctions[IRP_MJ_CREATE] = _FatDispatchCreate;
     DriverObject->DispatchFunctions[IRP_MJ_CLOSE] = _FatDispatchClose;
-    DriverObject->DispatchFunctions[IRP_MJ_READ] = _FatDispatchRead;
+    DriverObject->DispatchFunctions[IRP_MJ_READ] = _FatDispatchReadWrite;
+    DriverObject->DispatchFunctions[IRP_MJ_WRITE] = _FatDispatchReadWrite;
     DriverObject->DispatchFunctions[IRP_MJ_QUERY_INFORMATION] = _FatDispatchQueryInformation;
     DriverObject->DispatchFunctions[IRP_MJ_DIRECTORY_CONTROL] = _FatDispatchDirectoryControl;
 
@@ -81,11 +81,11 @@ STATUS
 
             // send an IOCTL to see device description
             pIrp = IoBuildDeviceIoControlRequest(IOCTL_VOLUME_PARTITION_INFO,
-                                                 pCurVolume,
-                                                 NULL,
-                                                 0,
-                                                 &partitionInformation,
-                                                 sizeof(PARTITION_INFORMATION)
+                pCurVolume,
+                NULL,
+                0,
+                &partitionInformation,
+                sizeof(PARTITION_INFORMATION)
             );
             if (NULL == pIrp)
             {
@@ -171,7 +171,6 @@ STATUS
     return status;
 }
 
-SAL_SUCCESS
 STATUS
 (__cdecl _FatDispatchCreate)(
     INOUT       PDEVICE_OBJECT      DeviceObject,
@@ -212,7 +211,7 @@ STATUS
     ASSERT(NULL == pStackLocation->FileObject->RelatedFileObject);
 
     fileType = (TRUE == pStackLocation->FileObject->Flags.DirectoryFile) ? ATTR_DIRECTORY : ATTR_NORMAL;
-    createOperation = (BOOLEAN) pStackLocation->FileObject->Flags.Create;
+    createOperation = (BOOLEAN)pStackLocation->FileObject->Flags.Create;
 
     __try
     {
@@ -222,7 +221,7 @@ STATUS
             status = FatCreateDirectoryEntry(pFatData, pStackLocation->FileObject->FileName, fileType);
             if (!SUCCEEDED(status))
             {
-                LOG_FUNC_ERROR("FatCreateDirectoryEntry", status);
+                LOG_TRACE_FILESYSTEM("[ERROR]FatCreateDirectoryEntry with status 0x%x\n", status);
                 __leave;
             }
 
@@ -230,15 +229,15 @@ STATUS
         }
 
         status = FatSearch(pFatData,
-                           pStackLocation->FileObject->FileName,
-                           &fileSector,
-                           fileType,
-                           &fileInformation,
-                           &parentSector
+            pStackLocation->FileObject->FileName,
+            &fileSector,
+            fileType,
+            &fileInformation,
+            &parentSector
         );
         if (!SUCCEEDED(status))
         {
-            LOG_FUNC_ERROR("FatSearch", status);
+            LOG_TRACE_FILESYSTEM("[ERROR]FatSearch failed with status 0x%x\n", status);
             __leave;
         }
 
@@ -251,7 +250,7 @@ STATUS
         }
 
         pFcb->FileOffsetInVolume = fileSector;
-        pFcb->ParentOffsetInVolume = fileSector;
+        pFcb->ParentOffsetInVolume = parentSector;
         memcpy(&pFcb->FileInformation, &fileInformation, sizeof(FILE_INFORMATION));
 
         pStackLocation->FileObject->FileSize = fileInformation.FileSize;
@@ -270,7 +269,6 @@ STATUS
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 (__cdecl _FatDispatchClose)(
     INOUT       PDEVICE_OBJECT      DeviceObject,
@@ -312,9 +310,8 @@ STATUS
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
-(__cdecl _FatDispatchRead)(
+(__cdecl _FatDispatchReadWrite)(
     INOUT       PDEVICE_OBJECT      DeviceObject,
     INOUT       PIRP                Irp
     )
@@ -322,10 +319,10 @@ STATUS
     STATUS status;
     PIO_STACK_LOCATION pStackLocation;
     PFAT_DATA pFatData;
-    BYTE fileType;
-    BOOLEAN createOperation;
     PFCB pFcb;
-    QWORD sectorsRead;
+    QWORD sectorsReadOrWritten;
+
+    PFUNC_FatReadWriteFile FatReadWriteFunc;
 
     LOG_FUNC_START;
 
@@ -335,18 +332,16 @@ STATUS
     status = STATUS_SUCCESS;
     pStackLocation = NULL;
     pFatData = NULL;
-    fileType = 0;
-    createOperation = FALSE;
     pFcb = NULL;
-    sectorsRead = 0;
+    sectorsReadOrWritten = 0;
 
     pStackLocation = IoGetCurrentIrpStackLocation(Irp);
-    ASSERT(IRP_MJ_READ == pStackLocation->MajorFunction);
+    ASSERT(IRP_MJ_READ == pStackLocation->MajorFunction || IRP_MJ_WRITE == pStackLocation->MajorFunction);
 
     pFatData = IoGetDeviceExtension(DeviceObject);
     ASSERT(NULL != pFatData);
 
-    pFcb = (PFCB) pStackLocation->FileObject->FsContext2;
+    pFcb = (PFCB)pStackLocation->FileObject->FsContext2;
     ASSERT(NULL != pFcb);
 
     ASSERT(MAX_DWORD >= pFcb->FileOffsetInVolume);
@@ -357,24 +352,36 @@ STATUS
 
     __try
     {
-        status = FatReadFile(pFatData,
-                             (DWORD) pFcb->FileOffsetInVolume,
-                             (DWORD) ( pStackLocation->Parameters.ReadWrite.Offset / pFatData->BytesPerSector ),
-                             Irp->Buffer,
-                             (DWORD) ( pStackLocation->Parameters.ReadWrite.Length / pFatData->BytesPerSector ),
-                             &sectorsRead,
-                             (BOOLEAN) Irp->Flags.Asynchronous
-                             );
+        if (IRP_MJ_READ == pStackLocation->MajorFunction)
+        {
+            FatReadWriteFunc = FatReadFile;
+        }
+        else
+        {
+            ASSERT(pStackLocation->MajorFunction == IRP_MJ_WRITE);
+            FatReadWriteFunc = FatWriteFile;
+        }
+
+        status = FatReadWriteFunc(
+            pFatData,
+            (DWORD)pFcb->FileOffsetInVolume,
+            (DWORD)(pStackLocation->Parameters.ReadWrite.Offset / pFatData->BytesPerSector),
+            pFcb->ParentOffsetInVolume,
+            Irp->Buffer,
+            (DWORD)(pStackLocation->Parameters.ReadWrite.Length / pFatData->BytesPerSector),
+            &sectorsReadOrWritten,
+            (BOOLEAN)Irp->Flags.Asynchronous
+        );
         if (!SUCCEEDED(status))
         {
-            LOG_FUNC_ERROR("FatReadFile", status);
+            LOG_FUNC_ERROR("FatReadWriteFunc", status);
             __leave;
         }
     }
     __finally
     {
         Irp->IoStatus.Status = status;
-        Irp->IoStatus.Information = sectorsRead * pFatData->BytesPerSector;
+        Irp->IoStatus.Information = sectorsReadOrWritten * pFatData->BytesPerSector;
 
         IoCompleteIrp(Irp);
 
@@ -384,7 +391,6 @@ STATUS
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 (__cdecl _FatDispatchQueryInformation)(
     INOUT       PDEVICE_OBJECT      DeviceObject,
@@ -438,7 +444,6 @@ STATUS
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 (__cdecl _FatDispatchDirectoryControl)(
     INOUT       PDEVICE_OBJECT      DeviceObject,
@@ -485,10 +490,10 @@ STATUS
 
         // status = FatQueryDirectory
         status = FatQueryDirectory(pFatData,
-                                   pFcb->FileOffsetInVolume,
-                                   pStackLocation->Parameters.QueryDirectory.Length,
-                                   Irp->Buffer,
-                                   &information
+            pFcb->FileOffsetInVolume,
+            pStackLocation->Parameters.QueryDirectory.Length,
+            Irp->Buffer,
+            &information
         );
         if (!SUCCEEDED(status))
         {

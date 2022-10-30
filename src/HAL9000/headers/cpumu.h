@@ -7,7 +7,7 @@
 #include "synch.h"
 #include "cpu_structures.h"
 
-#define STACK_DEFAULT_SIZE          (4*PAGE_SIZE)
+#define STACK_DEFAULT_SIZE          (8*PAGE_SIZE)
 #define STACK_GUARD_SIZE            (2*PAGE_SIZE)
 
 typedef struct _THREADING_DATA
@@ -25,6 +25,8 @@ typedef struct _THREADING_DATA
 
 typedef struct _PCPU
 {
+    struct _PCPU                *Self;
+
     PVOID                       StackTop;
     DWORD                       StackSize;
 
@@ -58,13 +60,13 @@ typedef struct _PCPU
 
     QWORD                       InterruptsTriggered[NO_OF_TOTAL_INTERRUPTS];
 } PCPU, *PPCPU;
-STATIC_ASSERT_INFO(FIELD_OFFSET(PCPU,StackTop) == 0x0, "Used by _syscall.yasm:20 on syscalls to determine the user thread's kernel stack!");
+STATIC_ASSERT_INFO(FIELD_OFFSET(PCPU,StackTop) == 0x8, "Used by _syscall.yasm:30 on syscalls to determine the user thread's kernel stack!");
 
 // This function should only be called when interrupts are disabled, else the CPU on which
 // the thread is running may change between the moment GetCurrentPcpu() was called and the moment
 // in which the pointer returned is actually used. This is an instance of a time of check to
 // time of use race condition.
-#define GetCurrentPcpu()    ((PCPU*)__readmsr(IA32_GS_BASE_MSR))
+#define GetCurrentPcpu()    ((PCPU*)__readgsqword(FIELD_OFFSET(PCPU,Self)))
 #define SetCurrentPcpu(pc)  (__writemsr(IA32_GS_BASE_MSR,(pc)))
 
 void
@@ -111,9 +113,14 @@ CpuMuChangeStack(
     IN          PVOID       NewStack
     );
 
-void
-CpuMuFreeStack(
-    IN          PVOID       Stack
+BOOLEAN
+CpuMuIsPcidFeaturePresent(
+    void
+    );
+
+STATUS
+CpuMuActivateFpuFeatures(
+    void
     );
 
 __forceinline

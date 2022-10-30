@@ -61,7 +61,7 @@ __main(
             __leave;
         }
 
-        LOG("First secondary thread has finished execution!\n");
+        LOG("First secondary thread has finished execution!");
 
         if (terminationStatus != STATUS_SUCCESS)
         {
@@ -84,7 +84,7 @@ __main(
             __leave;
         }
 
-        LOG("Second secondary thread has finished execution!\n");
+        LOG("Second secondary thread has finished execution!");
 
         if (terminationStatus != STATUS_UNSUCCESSFUL)
         {

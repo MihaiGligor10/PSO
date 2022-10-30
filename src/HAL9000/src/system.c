@@ -47,21 +47,11 @@ SystemPreinit(
     DumpPreinit();
     ThreadSystemPreinit();
     printSystemPreinit(NULL);
-    
-
-
     LogSystemPreinit();
     OsInfoPreinit();
-    
-    //__halt(); eroare in   MmuPreinitSystem();
     MmuPreinitSystem();
-    
     IomuPreinitSystem();
-    
     AcpiInterfacePreinit();
-    
-
-
     SmpPreinit();
     PciSystemPreinit();
     CorePreinit();
@@ -69,7 +59,6 @@ SystemPreinit(
     ProcessSystemPreinit();
 }
 
-SAL_SUCCESS
 STATUS
 SystemInit(
     IN  ASM_PARAMETERS*     Parameters
@@ -77,10 +66,10 @@ SystemInit(
 {
     STATUS status;
     PCPU* pCpu;
-__halt(); 
+
     status = STATUS_SUCCESS;
     pCpu = NULL;
-   
+
     LogSystemInit(LogLevelInfo,
                   LogComponentInterrupt | LogComponentIo | LogComponentAcpi,
                   TRUE
@@ -90,7 +79,7 @@ __halt();
     CpuMuValidateConfiguration();
 
     HalInitialize();
-    
+
     // install new GDT table
     status = GdtMuInit();
     if (!SUCCEEDED(status))
@@ -98,7 +87,7 @@ __halt();
         LOG_FUNC_ERROR("GdtMuInit", status);
         return status;
     }
-    
+
     // initialize serial communication
     status = SerialCommunicationInitialize(Parameters->BiosSerialPorts, BIOS_MAX_NO_OF_SERIAL_PORTS);
     if (!SUCCEEDED(status))
@@ -107,15 +96,13 @@ __halt();
         return status;
     }
 
-   
-
     LOG("Serial communications initialized\n");
     LOG("Running HAL9000 %s version %s built on %s\n",
         OsGetBuildType(),
         OsGetVersion(),
         OsGetBuildDate()
         );
-    CpuMuValidateConfiguration();
+
     status = OsInfoInit();
     if (!SUCCEEDED(status))
     {
@@ -124,6 +111,15 @@ __halt();
     }
 
     LOGL("OsInfoInit succeeded\n");
+
+    status = CpuMuActivateFpuFeatures();
+    if (!SUCCEEDED(status))
+    {
+        LOG_FUNC_ERROR("CpuMuActivateFpuFeatures", status);
+        return status;
+    }
+
+    LOGL("CpuMuActivateFpuFeatures succeeded\n");
 
     // IDT handlers need to be initialized before
     // MmuInitSystem is called because the VMM
@@ -211,10 +207,6 @@ __halt();
         return status;
     }
     LOGL("CpuMuAllocAndInitCpu succeeded\n");
-
-    // warning C4055: 'type cast': from data pointer to function pointer
-//#pragma warning(suppress:4055)
-  //  ((PFUNC_AssertFunction) &status)("C is very cool!\n");
 
     // initialize IO system
     // this also initializes the IDT
@@ -320,7 +312,7 @@ __halt();
     }
 
     LOGL("Network stack successfully initialized\n");
-   
+
     return status;
 }
 

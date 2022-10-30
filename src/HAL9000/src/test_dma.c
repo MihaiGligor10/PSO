@@ -58,7 +58,7 @@ TestDmaPerformance(
 
     for (i = 0; i < NO_OF_BYTES_VALUES; ++i)
     {
-        memzero(&perfStats, sizeof(PERFORMANCE_STATS));
+        memzero(&perfStats, sizeof(perfStats));
 
         bytesToRead = BYTES_TO_READ[i];
 

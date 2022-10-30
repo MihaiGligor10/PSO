@@ -1,5 +1,7 @@
 #pragma once
 
+#define INCLUDE_FP_SUPPORT                  0
+
 typedef QWORD XCR0_SAVED_STATE;
 
 #define XCR0_SAVED_STATE_x87_MMX            (1ULL<<0)

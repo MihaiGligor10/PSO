@@ -1,6 +1,10 @@
 #pragma once
 
-// warning C4201: nonstandard extension used: nameless struct/union 
+#pragma pack(push,1)
+
+#pragma warning(push)
+
+// warning C4201: nonstandard extension used: nameless struct/union
 #pragma warning(disable:4201)
 
 // warning C4200: nonstandard extension used: zero-sized array in struct/union
@@ -8,8 +12,6 @@
 
 // warning C4214: nonstandard extension used: bit field types other than int
 #pragma warning(disable:4214)
-
-#pragma pack(push,1)
 
 //////////////////////////////////////////////////////////////////////////////////////
 //////                               Address Types                             ///////
@@ -28,7 +30,7 @@ extern const MAC_ADDRESS MAC_BROADCAST;
 
 typedef union _IP4_ADDRESS
 {
-    struct  
+    struct
     {
         BYTE                ByteAddress[IP4_ADDRESS_SIZE];
     };
@@ -175,7 +177,7 @@ typedef struct _TCP_SEGMENT
     PORT_NUMBER         Destination;
     DWORD               SequenceNumber;
     DWORD               AckNumber;
-    struct  
+    struct
     {
         // 1st byte
         BYTE            CWR             : 1;
@@ -198,8 +200,5 @@ typedef struct _TCP_SEGMENT
 } TCP_SEGMENT, *PTCP_SEGMENT;
 STATIC_ASSERT(sizeof(TCP_SEGMENT) == TCP_SEGMENT_SIZE);
 
+#pragma warning(pop)
 #pragma pack(pop)
-
-#pragma warning(default:4214)
-#pragma warning(default:4200)
-#pragma warning(default:4201)

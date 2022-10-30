@@ -27,6 +27,8 @@
 
 #pragma pack(push,1)
 
+#pragma warning(push)
+
 // warning C4214: nonstandard extension used: bit field types other than int
 #pragma warning(disable:4214)
 
@@ -34,7 +36,7 @@
 #pragma warning(disable:4201)
 typedef union _ICR_HIGH_REGISTER
 {
-    struct  
+    struct
     {
         DWORD           Reserved                :   24;
         DWORD           Destination             :   8;
@@ -45,7 +47,7 @@ STATIC_ASSERT(sizeof(ICR_HIGH_REGISTER) == PREDEFINED_LAPIC_USABLE_REG_SIZE);
 
 typedef union _ICR_LOW_REGISTER
 {
-    struct 
+    struct
     {
         DWORD           Vector                  :   8;
         DWORD           DeliveryMode            :   3;
@@ -64,7 +66,7 @@ STATIC_ASSERT(sizeof(ICR_LOW_REGISTER) == PREDEFINED_LAPIC_USABLE_REG_SIZE);
 
 typedef union _LAPIC_VERSION_REGISTER
 {
-    struct  
+    struct
     {
         BYTE            Version;
         BYTE            __Reserved0;
@@ -78,7 +80,7 @@ STATIC_ASSERT(sizeof(LAPIC_VERSION_REGISTER) == PREDEFINED_LAPIC_USABLE_REG_SIZE
 
 typedef union _SVR_REGISTER
 {
-    struct 
+    struct
     {
         DWORD           Vector                  :    8;
         DWORD           ApicEnable              :    1;
@@ -97,22 +99,22 @@ typedef union _LVT_REGISTER
     {
         DWORD           Vector                  :    8;
 
-        // Reserved for Timer and Error              
+        // Reserved for Timer and Error
         DWORD           DeliveryMode            :    3;
 
         DWORD           __Reserved0             :    1;
 
         DWORD           DeliveryStatus          :    1;
 
-        // Valid only for LINT0 and LINT1            
+        // Valid only for LINT0 and LINT1
         DWORD           PinPolarity             :    1;
         DWORD           RemoteIRR               :    1;
         DWORD           TriggerMode             :    1;
 
-        // Valid for all                             
+        // Valid for all
         DWORD           Masked                  :    1;
 
-        // valid only for TIMER                      
+        // valid only for TIMER
         DWORD           TimerMode               :    2;
 
         DWORD           __Reserved1             :   13;
@@ -245,6 +247,5 @@ STATIC_ASSERT(FIELD_OFFSET(LAPIC,TimerInitialCount) == LAPIC_TIMER_INITIAL_COUNT
 STATIC_ASSERT(FIELD_OFFSET(LAPIC,TimerCurrentCount) == LAPIC_TIMER_CURRENT_COUNT_REGISTER_OFFSET );
 STATIC_ASSERT(FIELD_OFFSET(LAPIC,TimerDivideConfiguration) == LAPIC_TIMER_DIVIDE_REGISTER_OFFSET );
 
-#pragma warning(default:4201)
-#pragma warning(default:4214)
+#pragma warning(pop)
 #pragma pack(pop)

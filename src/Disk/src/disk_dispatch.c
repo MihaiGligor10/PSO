@@ -1,7 +1,6 @@
 #include "disk_base.h"
 #include "disk_dispatch.h"
 
-SAL_SUCCESS
 STATUS
 (__cdecl DiskDispatchReadWrite)(
     INOUT       PDEVICE_OBJECT      DeviceObject,
@@ -42,7 +41,6 @@ STATUS
     return status;
 }
 
-SAL_SUCCESS
 STATUS
 (__cdecl DiskDispatchDeviceControl)(
     INOUT       PDEVICE_OBJECT      DeviceObject,

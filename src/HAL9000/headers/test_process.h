@@ -5,6 +5,7 @@ typedef struct _PROCESS_TEST
     char*                       TestName;
     char*                       ProcessName;
     char*                       ProcessCommandLine;
+    DWORD                       NumberOfProcesses;
 } PROCESS_TEST, *PPROCESS_TEST;
 
 extern const PROCESS_TEST PROCESS_TESTS[];

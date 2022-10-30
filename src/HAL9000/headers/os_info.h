@@ -7,7 +7,6 @@ OsInfoPreinit(
     void
     );
 
-SAL_SUCCESS
 STATUS
 OsInfoInit(
     void

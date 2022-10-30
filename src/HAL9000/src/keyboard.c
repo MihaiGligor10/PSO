@@ -204,19 +204,19 @@ static WORD _kkybrd_scancode_ext[] = {
     KEY_UNKNOWN,        //0x44
     KEY_UNKNOWN,    //0x45
     KEY_UNKNOWN,    //0x46
-    KEY_UNKNOWN,       //0x47
-    KEY_UNKNOWN,       //0x48
+    KEY_HOME,       //0x47
+    KEY_UP,       //0x48
     KEY_UNKNOWN,       //0x49
     KEY_UNKNOWN,   //0x4a
     KEY_LEFT,       //0x4b
     KEY_UNKNOWN,       //0x4c
     KEY_RIGHT,       //0x4d
     KEY_UNKNOWN,    //0x4e
-    KEY_UNKNOWN,       //0x4f
-    KEY_UNKNOWN,        //0x50    //keypad down arrow
+    KEY_END,       //0x4f
+    KEY_DOWN,        //0x50    //keypad down arrow
     KEY_UNKNOWN,        //0x51    //keypad page down
     KEY_UNKNOWN,        //0x52    //keypad insert key
-    KEY_UNKNOWN,    //0x53    //keypad delete key
+    KEY_DELETE,    //0x53    //keypad delete key
     KEY_UNKNOWN,    //0x54
     KEY_UNKNOWN,    //0x55
     KEY_UNKNOWN,    //0x56
@@ -259,26 +259,26 @@ static
 void
 _KeyboardCtrlSendCommand(
     IN      BYTE        Command
-    );
+);
 
 static
 void
 _KeyboardEncSendCommand(
     IN      BYTE        Command
-    );
+);
 
 static
 void
 _KeyboardUpdateLEDs(
     void
-    );
+);
 
 static
 __forceinline
 BYTE
 _KeyboardCtrlReadStatus(
     void
-    )
+)
 {
     return __inbyte(KBD_CONTROLLER_SREG_PORT);
 }
@@ -288,7 +288,7 @@ __forceinline
 BYTE
 _KeyboardEncReadBuffer(
     void
-    )
+)
 {
     return __inbyte(KBD_ENCODER_INPUT_PORT);
 }
@@ -298,16 +298,15 @@ __forceinline
 void
 _KeyboardEnableKbd(
     void
-    )
+)
 {
     _KeyboardCtrlSendCommand(KeyboardCtrlCommandEnableKbd);
 }
 
-SAL_SUCCESS
 STATUS
 KeyboardInitialize(
     IN      BYTE        InterruptIrq
-    )
+)
 {
     STATUS status;
     IO_INTERRUPT ioInterrupt;
@@ -332,7 +331,7 @@ KeyboardInitialize(
     // set LEDs status
     m_keyboardData.CapsLock = m_keyboardData.ScrollLock = m_keyboardData.NumLock = FALSE;
     _KeyboardUpdateLEDs();
-    
+
     // set shift, ctrl and alt keys status
     m_keyboardData.Ctrl = m_keyboardData.Shift = m_keyboardData.Alt = FALSE;
 
@@ -351,7 +350,7 @@ KeyboardInitialize(
     ioInterrupt.Exclusive = TRUE;
     ioInterrupt.Legacy.Irq = InterruptIrq;
 
-    status = IoRegisterInterrupt( &ioInterrupt, NULL );
+    status = IoRegisterInterrupt(&ioInterrupt, NULL);
     if (!SUCCEEDED(status))
     {
         LOG_FUNC_ERROR("IoRegisterInterrupt", status);
@@ -368,7 +367,7 @@ _Success_(KEY_UNKNOWN != return)
 KEYCODE
 KeyboardGetLastKey(
     void
-    )
+)
 {
     return m_keyboardData.Keycode;
 }
@@ -377,7 +376,7 @@ _Success_(KEY_UNKNOWN != return)
 KEYCODE
 KeyboardWaitForKey(
     void
-    )
+)
 {
     ExEventWaitForSignal(&m_keyboardData.KeyPressedEvt);
     return m_keyboardData.Keycode;
@@ -386,7 +385,7 @@ KeyboardWaitForKey(
 void
 KeyboardDiscardLastKey(
     void
-    )
+)
 {
     ExEventClearSignal(&m_keyboardData.KeyPressedEvt);
     m_keyboardData.Keycode = KEY_UNKNOWN;
@@ -395,7 +394,7 @@ KeyboardDiscardLastKey(
 char
 KeyboardKeyToAscii(
     IN      KEYCODE     KeyCode
-    )
+)
 {
     char result = KeyCode;
 
@@ -405,7 +404,7 @@ KeyboardKeyToAscii(
         // character
         return 0;
     }
-    
+
     // if shift key is down xor caps lock is on, make the key uppercase
     // we certainly have small letter
     // if SHIFT on => uppercase
@@ -460,7 +459,7 @@ KeyboardKeyToAscii(
         }
         else
         {
-            
+
             switch (result)
             {
             case KEY_COMMA:
@@ -516,7 +515,7 @@ KeyboardKeyToAscii(
 void
 KeyboardResetSystem(
     void
-    )
+)
 {
     _KeyboardCtrlSendCommand(KeyboardCtrlCommandSystemReset);
 }
@@ -525,7 +524,7 @@ static
 void
 _KeyboardCtrlSendCommand(
     IN      BYTE        Command
-    )
+)
 {
     // we can't send any commands while the keyboard buffer is full
     while (IsBooleanFlagOn(_KeyboardCtrlReadStatus(), KBD_SREG_INPUT_BUFFER_FULL));
@@ -537,7 +536,7 @@ static
 void
 _KeyboardEncSendCommand(
     IN      BYTE        Command
-    )
+)
 {
     // because the commands sent to the encoder go through the controller
     // we can't send any commands while the keyboard buffer is full
@@ -550,7 +549,7 @@ static
 void
 _KeyboardUpdateLEDs(
     void
-    )
+)
 {
     BYTE data = 0;
 
@@ -580,12 +579,12 @@ BOOLEAN
 
     static BOOLEAN _extendedCode = FALSE;
 
-    ASSERT( NULL != Device );
+    ASSERT(NULL != Device);
 
     kbdStatus = _KeyboardCtrlReadStatus();
 
-    ASSERT_INFO(IsBooleanFlagOn(kbdStatus, KBD_SREG_OUTPUT_BUFFER_FULL), 
-                "How did we get interrupt if there is nothing in the buffer??");
+    ASSERT_INFO(IsBooleanFlagOn(kbdStatus, KBD_SREG_OUTPUT_BUFFER_FULL),
+        "How did we get interrupt if there is nothing in the buffer??");
 
     code = _KeyboardEncReadBuffer();
     key = 0;
@@ -616,26 +615,25 @@ BOOLEAN
             // grab the key
             key = _kkybrd_scancode_std[code];
         }
-        //ASSERT_INFO(KEY_UNKNOWN != key, "No mapping for code %x, extended %x\n", code, _extendedCode);
 
         if (keyBreak)
         {
             // test if a special key has been released & set it
             switch (key)
             {
-                case KEY_LCTRL:
-                case KEY_RCTRL:
-                    m_keyboardData.Ctrl = FALSE;
-                    break;
+            case KEY_LCTRL:
+            case KEY_RCTRL:
+                m_keyboardData.Ctrl = FALSE;
+                break;
 
-                case KEY_LSHIFT:
-                case KEY_RSHIFT:
-                    m_keyboardData.Shift = FALSE;
-                    break;
-                case KEY_LALT:
-                case KEY_RALT:
-                    m_keyboardData.Alt = FALSE;
-                    break;
+            case KEY_LSHIFT:
+            case KEY_RSHIFT:
+                m_keyboardData.Shift = FALSE;
+                break;
+            case KEY_LALT:
+            case KEY_RALT:
+                m_keyboardData.Alt = FALSE;
+                break;
             }
         }
         else
@@ -647,32 +645,32 @@ BOOLEAN
             switch (key)
             {
 
-                case KEY_LCTRL:
-                case KEY_RCTRL:
-                    m_keyboardData.Ctrl = TRUE;
-                    break;
+            case KEY_LCTRL:
+            case KEY_RCTRL:
+                m_keyboardData.Ctrl = TRUE;
+                break;
 
-                case KEY_LSHIFT:
-                case KEY_RSHIFT:
-                    m_keyboardData.Shift = TRUE;
-                    break;
+            case KEY_LSHIFT:
+            case KEY_RSHIFT:
+                m_keyboardData.Shift = TRUE;
+                break;
 
-                case KEY_LALT:
-                case KEY_RALT:
-                    m_keyboardData.Alt = TRUE;
-                    break;
-                case KEY_CAPSLOCK:
-                    m_keyboardData.CapsLock = !m_keyboardData.CapsLock;
-                    updateLEDs = TRUE;
-                    break;
-                case KEY_KP_NUMLOCK:
-                    m_keyboardData.NumLock = !m_keyboardData.NumLock;
-                    updateLEDs = TRUE;
-                    break;
-                case KEY_SCROLLLOCK:
-                    m_keyboardData.ScrollLock = !m_keyboardData.ScrollLock;
-                    updateLEDs = TRUE;
-                    break;
+            case KEY_LALT:
+            case KEY_RALT:
+                m_keyboardData.Alt = TRUE;
+                break;
+            case KEY_CAPSLOCK:
+                m_keyboardData.CapsLock = !m_keyboardData.CapsLock;
+                updateLEDs = TRUE;
+                break;
+            case KEY_KP_NUMLOCK:
+                m_keyboardData.NumLock = !m_keyboardData.NumLock;
+                updateLEDs = TRUE;
+                break;
+            case KEY_SCROLLLOCK:
+                m_keyboardData.ScrollLock = !m_keyboardData.ScrollLock;
+                updateLEDs = TRUE;
+                break;
             }
 
             if (updateLEDs)

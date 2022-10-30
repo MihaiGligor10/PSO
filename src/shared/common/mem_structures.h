@@ -15,6 +15,7 @@ typedef DWORD                       VMM_ALLOC_TYPE;
 #define VMM_ALLOC_TYPE_RESERVE      0x1
 #define VMM_ALLOC_TYPE_COMMIT       0x2
 #define VMM_ALLOC_TYPE_NOT_LAZY     0x4
+#define VMM_ALLOC_TYPE_ZERO         0x8
 
 typedef DWORD                       VMM_FREE_TYPE;
 

@@ -5,8 +5,8 @@
 
 typedef enum _EX_EVT_TYPE
 {
-    ExEventTypeNotification,
-    ExEventTypeSynchronization,
+    ExEventTypeNotification,        // notifies all threads
+    ExEventTypeSynchronization,     // notifies only one thread
 
     ExEventTypeReserved
 } EX_EVT_TYPE;
@@ -60,9 +60,9 @@ ExEventClearSignal(
 
 //******************************************************************************
 // Function:     ExEventWaitForSignal
-// Description:  Waits for an event to be signaled. If the event is signaled it
-//               will place the thread in a waiting list and block its
-//               execution.
+// Description:  Waits for an event to be signaled. If the event is not signaled
+//               the calling thread will be placed in a waiting list and its
+//               execution will be blocked.
 // Returns:      void
 // Parameter:    INOUT EX_EVENT * Event
 //******************************************************************************

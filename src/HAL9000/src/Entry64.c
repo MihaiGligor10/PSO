@@ -17,6 +17,8 @@
 #include "keyboard.h"
 #endif
 
+int _fltused = 1;
+
 void
 Entry64(
     IN  int                 argc,
@@ -26,23 +28,21 @@ Entry64(
     STATUS status;
     COMMON_LIB_INIT initSettings;
 
-    CHECK_STACK_ALIGNMENT;
+    // We don't have commonlib support yet, as a result we have no way of asserting at this point
+    if (!IS_STACK_ALIGNED) __halt();
 
     status = STATUS_SUCCESS;
     memzero(&initSettings, sizeof(COMMON_LIB_INIT));
 
     initSettings.Size = sizeof(COMMON_LIB_INIT);
     initSettings.AssertFunction = Hal9000Assert;
-    
+
     CpuMuPreinit();
 
     status = CpuMuSetMonitorFilterSize(sizeof(MONITOR_LOCK));
     initSettings.MonitorSupport = SUCCEEDED(status);
 
     status = CommonLibInit(&initSettings);
-
-   
-
     if (!SUCCEEDED(status))
     {
         // not good lads
@@ -51,16 +51,12 @@ Entry64(
 
     ASSERT_INFO(1 == argc, "We are always expecting a single parameter\n");
     ASSERT_INFO(NULL != argv, "We are expecting a non-NULL pointer\n");
-   //__halt();
 
     gVirtualToPhysicalOffset = argv->VirtualToPhysicalOffset;
-    
-    //__halt();     problema gasita in SystemPreinit();
     SystemPreinit();
 
     DumpParameters(argv);
-    
-    
+
     status = SystemInit(argv);
     ASSERT(SUCCEEDED(status));
 

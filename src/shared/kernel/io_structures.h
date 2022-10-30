@@ -2,8 +2,15 @@
 
 #include "time.h"
 
+/// never do this at home kids
+#include "..\..\HAL9000\headers\mutex.h"
+
+#define SHORT_NAME_MAX_LENGTH       16
+
 // common packing
 #pragma pack(push,8)
+
+#pragma warning(push)
 
 // warning C4201: nonstandard extension used: nameless struct/union
 #pragma warning(disable:4201)
@@ -36,16 +43,16 @@ typedef struct _FILE_INFORMATION
 // IRP_MN_QUERY_DIRECTORY
 // warning C4200: nonstandard extension used: zero-sized array in struct/union
 #pragma warning(disable:4200)
-typedef 
+typedef
 _Struct_size_bytes_(sizeof(FILE_DIRECTORY_INFORMATION) + FilenameLength)
 struct _FILE_DIRECTORY_INFORMATION
 {
     DWORD                           NextEntryOffset;
     FILE_INFORMATION                BasicFileInformation;
+    char                            ShortFilename[SHORT_NAME_MAX_LENGTH];
     DWORD                           FilenameLength;
     char                            Filename[0];
 } FILE_DIRECTORY_INFORMATION, *PFILE_DIRECTORY_INFORMATION;
-#pragma warning(default:4200)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 /////////                        FUNDAMENTAL STRUCTURES                                 /////////
@@ -91,6 +98,8 @@ typedef struct _DEVICE_OBJECT
     // the R/W parameters (length and offset)
     DWORD                   DeviceAlignment;
 
+    MUTEX                   DeviceLock;
+
     // valid only for volume and file system devices
     struct _VPB*            Vpb;
 
@@ -129,7 +138,7 @@ typedef struct _IO_INTERRUPT
         {
             BYTE                Irq;
         } Legacy;
-        struct  
+        struct
         {
             BYTE                __Reserved0;
         } Lapic;
@@ -197,7 +206,6 @@ typedef struct _IRP
 
     IO_STACK_LOCATION   StackLocations[0];
 } IRP, *PIRP;
-#pragma warning(default:4200)
 
 typedef struct _MDL_TRANSLATION_PAIR
 {
@@ -205,9 +213,9 @@ typedef struct _MDL_TRANSLATION_PAIR
     DWORD               NumberOfBytes;
 } MDL_TRANSLATION_PAIR, *PMDL_TRANSLATION_PAIR;
 
-// warning C4200: nonstandard extension used: zero-sized array in struct/union 
+// warning C4200: nonstandard extension used: zero-sized array in struct/union
 #pragma warning(disable:4200)
-typedef 
+typedef
 _Struct_size_bytes_(sizeof(MDL) + NumberOfTranslationPairs * sizeof(MDL_TRANSLATION_PAIR))
 struct _MDL
 {
@@ -220,10 +228,8 @@ struct _MDL
 
     MDL_TRANSLATION_PAIR        Translations[0];
 } MDL, *PMDL;
-#pragma warning(default:4200)
 
 typedef
-SAL_SUCCESS
 STATUS
 (__cdecl FUNC_DriverDispatch)(
     INOUT       PDEVICE_OBJECT      DeviceObject,
@@ -246,7 +252,6 @@ typedef struct _DRIVER_OBJECT
 } DRIVER_OBJECT, *PDRIVER_OBJECT;
 
 typedef
-SAL_SUCCESS
 STATUS
 (__cdecl FUNC_DriverEntry)(
     INOUT       PDRIVER_OBJECT      DriverObject
@@ -279,13 +284,15 @@ typedef struct _GET_LENGTH_INFORMATION
 typedef struct _PARTITION_INFORMATION
 {
     QWORD           OffsetInDisk;
+
+    // Partition size in sectors
     QWORD           PartitionSize;
     BYTE            PartitionType;
     BOOLEAN         Bootable;
 } PARTITION_INFORMATION, *PPARTITION_INFORMATION;
 
 // IOCTL_DISK_LAYOUT_INFO
-typedef 
+typedef
 _Struct_size_bytes_(sizeof(DISK_LAYOUT_INFORMATION) + NumberOfPartitions * sizeof(PARTITION_INFORMATION))
 struct _DISK_LAYOUT_INFORMATION
 {
@@ -314,7 +321,6 @@ typedef struct _NET_GET_LINK_STATUS
 {
     BOOLEAN                 LinkUp;
 } NET_GET_LINK_STATUS, *PNET_GET_LINK_STATUS;
-#pragma warning(default:4200)
 
 #define IOCTL_DISK_GET_LENGTH_INFO          0x0
 #define IOCTL_DISK_LAYOUT_INFO              0x1
@@ -328,5 +334,5 @@ typedef struct _NET_GET_LINK_STATUS
 #define IOCTL_NET_GET_LINK_STATUS           0x9
 
 // end of common packing
-#pragma warning(default:4201)
+#pragma warning(pop)
 #pragma pack(pop)

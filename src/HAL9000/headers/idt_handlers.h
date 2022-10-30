@@ -44,7 +44,6 @@ typedef enum _INTERRUPT
 #define     IVT_ENTRY_SIZE                  4
 #define     IVT_LIMIT                       0x3FF
 
-SAL_SUCCESS
 STATUS
 InitIdtHandlers(
     IN      WORD                CodeSelector,

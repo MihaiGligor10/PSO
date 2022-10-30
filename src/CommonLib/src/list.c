@@ -153,7 +153,8 @@ void
 InsertOrderedList(
     INOUT   PLIST_ENTRY             ListHead,
     INOUT   PLIST_ENTRY             Entry,
-    IN      PFUNC_CompareFunction   CompareFunction
+    IN      PFUNC_CompareFunction   CompareFunction,
+    IN_OPT  PVOID                   Context
     )
 {
     PLIST_ENTRY pCurrentEntry;
@@ -167,7 +168,7 @@ InsertOrderedList(
          pCurrentEntry = pCurrentEntry->Flink
          )
     {
-        if (CompareFunction(Entry, pCurrentEntry) < 0)
+        if (CompareFunction(Entry, pCurrentEntry, Context) < 0)
         {
             // entry to insert is smaller than current entry
             break;
@@ -296,7 +297,9 @@ PLIST_ENTRY
 ListSearchForElement(
     IN      PLIST_ENTRY             ListHead,
     IN      PLIST_ENTRY             ElementToSearchFor,
-    IN      PFUNC_CompareFunction   CompareFunction
+    IN      BOOLEAN                 IsListOrdered,
+    IN      PFUNC_CompareFunction   CompareFunction,
+    IN_OPT  PVOID                   Context
     )
 {
     PLIST_ENTRY pCurEntry;
@@ -323,13 +326,48 @@ ListSearchForElement(
     pCurEntry = ListHead->Flink;
     while (pCurEntry != ListHead)
     {
-        if (0 == CompareFunction(pCurEntry, ElementToSearchFor))
-        {
-            return pCurEntry;
-        }
+        INT64 cmpResult = CompareFunction(pCurEntry, ElementToSearchFor, Context);
+
+        if (cmpResult == 0) return pCurEntry;
+        if (IsListOrdered && (cmpResult > 0)) return NULL;
 
         pCurEntry = pCurEntry->Flink;
     }
 
     return NULL;
+}
+
+void
+ListIteratorInit(
+    IN      PLIST_ENTRY         List,
+    OUT     PLIST_ITERATOR      ListIterator
+    )
+{
+    ASSERT(List != NULL);
+    ASSERT(ListIterator != NULL);
+
+    ListIterator->ListHead = List;
+    ListIterator->CurrentEntry = List->Flink;
+}
+
+PLIST_ENTRY
+ListIteratorNext(
+    INOUT   PLIST_ITERATOR      ListIterator
+    )
+{
+    PLIST_ENTRY pResult;
+
+    ASSERT(ListIterator != NULL);
+
+    pResult = NULL;
+
+    if (ListIterator->CurrentEntry != ListIterator->ListHead)
+    {
+        pResult = ListIterator->CurrentEntry;
+
+        // advance current entry
+        ListIterator->CurrentEntry = ListIterator->CurrentEntry->Flink;
+    }
+
+    return pResult;
 }

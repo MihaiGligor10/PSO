@@ -1,5 +1,7 @@
 #pragma once
 
+#pragma pack(push)
+#pragma pack(1)
 typedef struct _INTERRUPT_STACK
 {
     QWORD                       Rip;
@@ -14,6 +16,7 @@ typedef struct _INTERRUPT_STACK_COMPLETE
     QWORD                       ErrorCode;
     INTERRUPT_STACK             Registers;
 } INTERRUPT_STACK_COMPLETE, *PINTERRUPT_STACK_COMPLETE;
+#pragma pack(pop)
 
 typedef
 BOOLEAN
@@ -23,7 +26,6 @@ BOOLEAN
 
 typedef FUNC_IsrRoutine*        PFUNC_IsrRoutine;
 
-SAL_SUCCESS
 STATUS
 IsrInstallEx(
     IN      BYTE                Vector,

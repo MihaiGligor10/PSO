@@ -114,8 +114,11 @@ MmuGetHighestPhysicalMemoryAddressPresent(
 // Parameter:    IN PHYSICAL_ADDRESS PhysicalAddress
 // Parameter:    IN DWORD Size
 // Parameter:    IN PAGE_RIGHTS PageRights
-// Parameter:    IN BOOLEAN Invalidate
+// Parameter:    IN BOOLEAN Invalidate - If TRUE modifies paging structure even
+//               if it was already mapped.
 // Parameter:    IN BOOLEAN Uncacheable
+// Parameter:    IN_OPT PPAGING_LOCK_DATA PagingData - Paging structures to use,
+//               if NULL maps only to kernel space.
 //******************************************************************************
 PTR_SUCCESS
 PVOID
@@ -125,7 +128,7 @@ MmuMapMemoryEx(
     IN      PAGE_RIGHTS             PageRights,
     IN      BOOLEAN                 Invalidate,
     IN      BOOLEAN                 Uncacheable,
-    IN_OPT  PPAGING_LOCK_DATA       PagingDatas
+    IN_OPT  PPAGING_LOCK_DATA       PagingData
     );
 
 //******************************************************************************
@@ -341,6 +344,17 @@ MmuInitAddressSpaceForSystemProcess(
 void
 MmuActivateProcessIds(
     void
+    );
+
+//******************************************************************************
+// Function:     MmuActivateProcessIds
+// Description:  Switches to the address space of a different process.
+// Returns:      void
+// Parameter:    IN PPROCESS Process
+//******************************************************************************
+void
+MmuChangeProcessSpace(
+    IN          PPROCESS            Process
     );
 
 //******************************************************************************

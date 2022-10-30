@@ -1,5 +1,7 @@
 #pragma once
 
+C_HEADER_START
+
 #ifndef _COMMONLIB_NO_LOCKS_
 #include "spinlock.h"
 #include "monlock.h"
@@ -113,3 +115,4 @@ LockSystemInit(
     IN      BOOLEAN             MonitorSupport
     );
 #endif // _COMMONLIB_NO_LOCKS_
+C_HEADER_END

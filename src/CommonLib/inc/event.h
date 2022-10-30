@@ -1,5 +1,6 @@
 #pragma once
 
+C_HEADER_START
 typedef enum _EVENT_TYPE
 {
     EventTypeNotification,
@@ -8,6 +9,8 @@ typedef enum _EVENT_TYPE
     EventTypeReserved
 } EVENT_TYPE, *PEVENT_TYPE;
 
+#pragma warning(push)
+
 // nonstandard extension used : nameless struct/union
 #pragma warning(disable:4201)
 typedef struct _EVENT
@@ -15,7 +18,7 @@ typedef struct _EVENT
     volatile BYTE       State;
     EVENT_TYPE          EventType;
 } EVENT, *PEVENT;
-#pragma warning(default:4201)
+#pragma warning(pop)
 
 //******************************************************************************
 // Function:     EvtInitialize
@@ -82,3 +85,4 @@ BOOLEAN
 EvtIsSignaled(
     INOUT   EVENT*          Event
     );
+C_HEADER_END

@@ -32,6 +32,7 @@ MutexAcquire(
     INTR_STATE dummyState;
     INTR_STATE oldState;
     PTHREAD pCurrentThread = GetCurrentThread();
+    PTHREAD auxCT = pCurrentThread;
 
     ASSERT( NULL != Mutex);
     ASSERT( NULL != pCurrentThread );
@@ -52,6 +53,10 @@ MutexAcquire(
         Mutex->Holder = pCurrentThread;
         Mutex->CurrentRecursivityDepth = 1;
     }
+    
+    
+    
+
 
     while (Mutex->Holder != pCurrentThread)
     {
@@ -60,9 +65,42 @@ MutexAcquire(
         LockRelease(&Mutex->MutexLock, dummyState);
         ThreadBlock();
         LockAcquire(&Mutex->MutexLock, &dummyState );
+
+
+        THREAD_PRIORITY holderPrio= ThreadGetPriority(Mutex->Holder);
+        THREAD_PRIORITY crtPrio  = ThreadGetPriority(pCurrentThread);
+        
+        if (auxCT->WaitedMutex == NULL)
+        {
+            Mutex->Holder = NULL;
+        }
+
+        while (Mutex->Holder != NULL)
+        {
+            
+            
+            if (holderPrio < crtPrio)
+            {
+                Mutex->Holder->Priority = crtPrio;
+            }
+            
+            auxCT = Mutex->Holder;
+            
+            Mutex->Holder = auxCT->WaitedMutex->Holder;
+            crtPrio = ThreadGetPriority(auxCT);
+            holderPrio = ThreadGetPriority(Mutex->Holder);
+
+           
+        }
+     
+
     }
 
+    
     _Analysis_assume_lock_acquired_(*Mutex);
+
+
+    //InsertTailList(&pCurrentThread->AcquiredMutexesList, &Mutex->AcquiredMutexListElem);
 
     LockRelease(&Mutex->MutexLock, dummyState);
 
@@ -91,6 +129,13 @@ MutexRelease(
     pEntry = NULL;
 
     LockAcquire(&Mutex->MutexLock, &oldState);
+
+    /*
+    if (Mutex -> Holder->Priority != Mutex->Holder -> RealPriority)
+    {
+        Mutex -> Holder->Priority = Mutex -> Holder->RealPriority;
+    }
+       */
 
     pEntry = RemoveHeadList(&Mutex->WaitingList);
     if (pEntry != &Mutex->WaitingList)

@@ -25,4 +25,5 @@ FUNC_ThreadStart                        TestThreadTimerSleep;
 FUNC_ThreadStart                        TestThreadTimerMultiple;
 
 FUNC_ThreadPrepareTest                  TestThreadTimerPrepare;
-FUNC_ThreadPostFinish                   TestThreadTimerPostFinish;
+FUNC_ThreadPostFinish                   TestThreadTimerMultipleTimersPostFinish;
+FUNC_ThreadPostFinish					TestThreadTimerMultipleThreadsPostFinish;

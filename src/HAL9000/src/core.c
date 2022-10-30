@@ -40,7 +40,6 @@ CorePreinit(
     memzero(&m_coreData, sizeof(CORE_DATA));
 }
 
-SAL_SUCCESS
 STATUS
 CoreInit(
     void

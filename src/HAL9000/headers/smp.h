@@ -46,14 +46,12 @@ SmpPreinit(
     void
     );
 
-SAL_SUCCESS
 STATUS
 _No_competing_thread_
 SmpInit(
     void
     );
 
-SAL_SUCCESS
 STATUS
 _No_competing_thread_
 SmpSetupLowerMemory(
@@ -122,7 +120,6 @@ SmpSendGenericIpiEx(
             SMP_DESTINATION         Destination
     );
 
-SAL_SUCCESS
 STATUS
 SmpCpuInit(
     void

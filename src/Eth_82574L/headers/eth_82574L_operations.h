@@ -1,6 +1,5 @@
 #pragma once
 
-SAL_SUCCESS
 STATUS
 EthInitializeDevice(
     IN_READS(ETH_NO_OF_BARS_USED)   PPCI_BAR        Bars,

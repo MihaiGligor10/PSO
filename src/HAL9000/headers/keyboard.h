@@ -5,7 +5,6 @@
 // A Make Code is sent when a key is pressed or held down
 // A Break code is sent when a key is released
 
-SAL_SUCCESS
 STATUS
 KeyboardInitialize(
     IN      BYTE        InterruptIrq

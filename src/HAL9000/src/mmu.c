@@ -6,7 +6,7 @@
 #include "pte.h"
 #include "display.h"
 #include "synch.h"
-#include "heap.h"
+#include "cl_heap.h"
 #include "cpumu.h"
 #include "thread.h"
 #include "pe_parser.h"
@@ -41,6 +41,8 @@
 
 #pragma pack(push,1)
 
+#pragma warning(push)
+
 // warning C4201: nonstandard extension used: nameless struct/union
 #pragma warning(disable:4201)
 typedef union _PAGE_FAULT_ERR_CODE
@@ -61,7 +63,7 @@ typedef union _PAGE_FAULT_ERR_CODE
 } PAGE_FAULT_ERR_CODE, *PPAGE_FAULT_ERR_CODE;
 STATIC_ASSERT( sizeof(PAGE_FAULT_ERR_CODE) == sizeof(DWORD));
 
-#pragma warning(default:4201)
+#pragma warning(pop)
 
 #pragma pack(pop)
 
@@ -111,6 +113,7 @@ typedef struct _MMU_DATA
 
     PE_NT_HEADER_INFO               KernelInfo;
     PVOID                           TemporaryStackBase;
+    BOOLEAN                         PcidSupportAvailable;
 
     MMU_ZERO_THREAD_DATA            ZeroThreadData;
 
@@ -127,7 +130,6 @@ _MmuInitPagingSystem(
     );
 
 static
-SAL_SUCCESS
 STATUS
 _MmuRetrieveKernelInfoAndValidate(
     IN      PVOID                   KernelBase,
@@ -136,7 +138,6 @@ _MmuRetrieveKernelInfoAndValidate(
     );
 
 static
-SAL_SUCCESS
 STATUS
 _MmuRemapStack(
     IN      PPAGING_DATA            PagingData,
@@ -145,7 +146,6 @@ _MmuRemapStack(
     );
 
 static
-SAL_SUCCESS
 STATUS
 _MmuMapKernelMemory(
     IN          PPAGING_DATA            PagingData,
@@ -162,7 +162,6 @@ _MmuMapPeInMemory(
     );
 
 static
-SAL_SUCCESS
 STATUS
 _MmuReserveAndMapMemory(
     IN          PPAGING_DATA            PagingData,
@@ -173,7 +172,6 @@ _MmuReserveAndMapMemory(
     );
 
 static
-SAL_SUCCESS
 STATUS
 _MmuInitializeHeap(
     OUT         PMMU_HEAP_DATA          Heap,
@@ -250,17 +248,14 @@ MmuPreinitSystem(
     memzero(&m_mmuData, sizeof(MMU_DATA));
 
     RecRwSpinlockInit(0, &m_mmuData.PagingData.Lock);
-    
+
     InitializeListHead(&m_mmuData.ZeroThreadData.PagesToZeroList);
-    
     LockInit(&m_mmuData.ZeroThreadData.PagesLock);
-   // __halt(); 
-   // DWORD z = *((PBYTE)NULL);z;
+
+    m_mmuData.PcidSupportAvailable = CpuMuIsPcidFeaturePresent();
 
     PmmPreinitSystem();
-    
     VmmPreinit();
-   
 }
 
 // We have the following virtual memory layout
@@ -980,7 +975,7 @@ MmuDestroyAddressSpaceForProcess(
         ProcessActivatePagingTables(Process, TRUE);
 
         // restore previous paging table
-        ProcessActivatePagingTables(GetCurrentThread()->Process, FALSE);
+        ProcessActivatePagingTables(GetCurrentThread()->Process, !m_mmuData.PcidSupportAvailable);
 
         _MmuDestroyPagingTables(Process->PagingData);
         Process->PagingData = NULL;
@@ -1017,10 +1012,31 @@ MmuActivateProcessIds(
     void
     )
 {
-    __writecr4(__readcr4() | CR4_PCIDE);
-    ProcessActivatePagingTables(ProcessRetrieveSystemProcess(), FALSE);
+    if (m_mmuData.PcidSupportAvailable)
+    {
+        __writecr4(__readcr4() | CR4_PCIDE);
+    }
 
-    LOGL("Successfully activated process identifiers!\n");
+    MmuChangeProcessSpace(ProcessRetrieveSystemProcess());
+
+    if (m_mmuData.PcidSupportAvailable)
+    {
+        LOGL("Successfully activated process identifiers!\n");
+    }
+    else
+    {
+        LOGL("This CPU doesn't have support for PCIDs, either an AMD or an old Intel!!!\n");
+    }
+}
+
+void
+MmuChangeProcessSpace(
+    IN          PPROCESS            Process
+    )
+{
+    ASSERT(Process != NULL);
+
+    ProcessActivatePagingTables(Process, !m_mmuData.PcidSupportAvailable);
 }
 
 PTR_SUCCESS
@@ -1146,6 +1162,14 @@ MmuIsBufferValid(
         return STATUS_INVALID_PARAMETER4;
     }
 
+    // This is a temporary hack, we should also check the access rights, however HAL9000 currently does not support
+    // these checks in case the buffer is inside the binary
+    if (Process->HeaderInfo->Preferred.ImageBase <= Buffer
+        && Buffer < (PVOID)PtrOffset(Process->HeaderInfo->Preferred.ImageBase, Process->HeaderInfo->Size))
+    {
+        return STATUS_SUCCESS;
+    }
+
     return VmmIsBufferValid(Buffer,
                             BufferSize,
                             RightsRequested,
@@ -1198,7 +1222,7 @@ MmuGetSystemVirtualAddressForUserBuffer(
                              (DWORD)Size,
                              NULL,
                              Process->PagingData);
-        if (!SUCCEEDED(status))
+        if (pMdl == NULL)
         {
             LOG_FUNC_ERROR_ALLOC("MdlAllocateEx", Size);
             status = STATUS_UNSUCCESSFUL;
@@ -1431,7 +1455,6 @@ _MmuInitPagingSystem(
 }
 
 static
-SAL_SUCCESS
 STATUS
 _MmuRetrieveKernelInfoAndValidate(
     IN      PVOID                   KernelBase,
@@ -1498,7 +1521,6 @@ _MmuRetrieveKernelInfoAndValidate(
 }
 
 static
-SAL_SUCCESS
 STATUS
 _MmuRemapStack(
     IN      PPAGING_DATA            PagingData,
@@ -1748,7 +1770,6 @@ _MmuMapPeInMemory(
 }
 
 static
-SAL_SUCCESS
 STATUS
 _MmuMapKernelMemory(
     IN          PPAGING_DATA            PagingData,
@@ -1799,7 +1820,6 @@ _MmuMapKernelMemory(
 }
 
 static
-SAL_SUCCESS
 STATUS
 _MmuReserveAndMapMemory(
     IN          PPAGING_DATA            PagingData,
@@ -1843,7 +1863,6 @@ _MmuReserveAndMapMemory(
 }
 
 static
-SAL_SUCCESS
 STATUS
 _MmuInitializeHeap(
     OUT         PMMU_HEAP_DATA          Heap,
@@ -1854,6 +1873,7 @@ _MmuInitializeHeap(
     STATUS status;
     DWORD framesForHeapStructures;
     QWORD heapSize;
+    PVOID heapBaseAddress;
 
     ASSERT( NULL != Heap );
 
@@ -1870,14 +1890,25 @@ _MmuInitializeHeap(
 
     LOG("Total size reserved for heap: %U bytes ( %U KB )\n", heapSize, heapSize / KB_SIZE);
 
-    status = HeapInitializeSystem(heapSize, &Heap->Heap);
+    heapBaseAddress = VmmAllocRegion(NULL,
+        heapSize,
+        VMM_ALLOC_TYPE_RESERVE | VMM_ALLOC_TYPE_COMMIT,
+        PAGE_RIGHTS_READWRITE
+    );
+    if (heapBaseAddress == NULL)
+    {
+        LOG_ERROR("VmmAlloc failed to reserve & commit a heap of size %U!\n", heapSize);
+        return STATUS_MEMORY_CANNOT_BE_RESERVED;
+    }
+
+    status = ClHeapInit(heapBaseAddress, heapSize, &Heap->Heap);
     if (!SUCCEEDED(status))
     {
-        LOG_FUNC_ERROR("HeapInitializeSystem", status);
+        LOG_FUNC_ERROR("ClHeapInit", status);
         return status;
     }
 
-    LOG("HeapInitializeSystem suceeded\n");
+    LOG("ClHeapInit suceeded\n");
 
     LockInit(&Heap->HeapLock);
 
@@ -1903,7 +1934,7 @@ _MmuAllocateFromPoolWithTag(
     ASSERT( NULL != m_mmuData.Heaps[Heap].Heap );
 
     LockAcquire(&m_mmuData.Heaps[Heap].HeapLock, &oldState );
-    pResult = HeapAllocatePoolWithTag(m_mmuData.Heaps[Heap].Heap,
+    pResult = ClHeapAllocatePoolWithTag(m_mmuData.Heaps[Heap].Heap,
                                       Flags,
                                       AllocationSize,
                                       Tag,
@@ -1929,7 +1960,7 @@ _MmuFreeFromPoolWithTag(
     ASSERT( NULL != m_mmuData.Heaps[Heap].Heap );
 
     LockAcquire(&m_mmuData.Heaps[Heap].HeapLock, &oldState);
-    HeapFreePoolWithTag(m_mmuData.Heaps[Heap].Heap,
+    ClHeapFreePoolWithTag(m_mmuData.Heaps[Heap].Heap,
                         MemoryAddress,
                         Tag
                         );

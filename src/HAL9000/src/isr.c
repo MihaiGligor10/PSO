@@ -38,7 +38,7 @@ _IsrExceptionHandler(
     IN BYTE                         InterruptIndex,
     IN PINTERRUPT_STACK_COMPLETE    StackPointer,
     IN BOOLEAN                      ErrorCodeAvailable,
-    IN PROCESSOR_STATE*             ProcessorState
+    IN COMPLETE_PROCESSOR_STATE*    ProcessorState
     );
 
 static
@@ -53,7 +53,7 @@ IsrCommonHandler(
     IN BYTE                                 InterruptIndex,
     IN PINTERRUPT_STACK_COMPLETE            StackPointer,
     IN BOOLEAN                              ErrorCodeAvailable,
-    IN PROCESSOR_STATE*                     ProcessorState
+    IN COMPLETE_PROCESSOR_STATE*            ProcessorState
     )
 {
     PPCPU pPcpu;
@@ -85,7 +85,7 @@ _IsrExceptionHandler(
     IN BYTE                         InterruptIndex,
     IN PINTERRUPT_STACK_COMPLETE    StackPointer,
     IN BOOLEAN                      ErrorCodeAvailable,
-    IN PROCESSOR_STATE*             ProcessorState
+    IN COMPLETE_PROCESSOR_STATE*             ProcessorState
     )
 {
     DWORD errorCode;
@@ -233,7 +233,6 @@ _IsrInterruptHandler(
     }
 }
 
-SAL_SUCCESS
 STATUS
 IsrInstallEx(
     IN      BYTE                Vector,

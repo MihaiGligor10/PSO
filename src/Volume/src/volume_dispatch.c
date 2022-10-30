@@ -27,7 +27,6 @@ _VolCheckIOParameters(
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 (__cdecl VolDispatchReadWrite)(
     INOUT       PDEVICE_OBJECT      DeviceObject,
@@ -104,7 +103,6 @@ STATUS
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 (__cdecl VolDispatchDeviceControl)(
     INOUT       PDEVICE_OBJECT      DeviceObject,

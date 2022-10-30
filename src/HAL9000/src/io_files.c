@@ -76,7 +76,19 @@ _IoIsFilePathValid(
     return TRUE;
 }
 
-SAL_SUCCESS
+static
+STATUS
+_IoReadWriteFile(
+    IN          PFILE_OBJECT            FileHandle,
+    _When_(!Write,OUT_WRITES_BYTES(Length))
+    _When_(Write,IN_READS_BYTES(Length))
+                PVOID                   Buffer,
+    IN          QWORD                   Length,
+    IN_OPT      QWORD*                  FileOffset,
+    OUT         QWORD*                  BytesTransferred,
+    IN          BOOLEAN                 Write
+    );
+
 STATUS
 IoCreateFile(
     OUT_PTR     PFILE_OBJECT*           Handle,
@@ -145,7 +157,7 @@ IoCreateFile(
 
     // create the FILE_OBJECT for the stack location
     _IoAllocateFileObject(pStackLocation, &FileName[FILE_NAME_MIN_LEN - 1], Asynchronous, Create, Directory);
-    
+
     __try
     {
 
@@ -162,7 +174,7 @@ IoCreateFile(
     {
         if (!SUCCEEDED(status))
         {
-            LOG_FUNC_ERROR("IoCallDriver", status);
+            LOG_TRACE_IO("[ERROR]IoCallDriver failed with status 0x%x\n", status);
 
             ASSERT(NULL != pStackLocation);
             ASSERT(NULL != pStackLocation->FileObject);
@@ -186,7 +198,6 @@ IoCreateFile(
     return status;
 }
 
-SAL_SUCCESS
 STATUS
 IoCloseFile(
     IN          PFILE_OBJECT            FileHandle
@@ -240,111 +251,63 @@ IoCloseFile(
     return status;
 }
 
-SAL_SUCCESS
 STATUS
 IoReadFile(
     IN          PFILE_OBJECT            FileHandle,
     IN          QWORD                   BytesToRead,
     IN_OPT      QWORD*                  FileOffset,
-    OUT         PVOID                   Buffer,
+    OUT_WRITES_BYTES(BytesToRead)
+                PVOID                   Buffer,
     OUT         QWORD*                  BytesRead
     )
 {
-    STATUS status;
-    PIRP pIrp;
-    PDEVICE_OBJECT pFileSystemDevice;
-    PIO_STACK_LOCATION pStackLocation;
-    QWORD fileOffset;
-
-    LOG_FUNC_START;
-
-    ASSERT(NULL != FileHandle);
-    ASSERT(NULL != Buffer);
-    ASSERT(NULL != BytesRead);
-
-    status = STATUS_SUCCESS;
-    pIrp = NULL;
-    pFileSystemDevice = NULL;
-    pStackLocation = NULL;
-    
-    if (FileHandle->Flags.Asynchronous)
-    {
-        ASSERT(NULL != FileOffset);
-
-        fileOffset = *FileOffset;
-    }
-    else
-    {
-        if (NULL == FileOffset)
-        {
-            fileOffset = FileHandle->CurrentByteOffset;
-        }
-        else
-        {
-            fileOffset = *FileOffset;
-        }
-    }
-
-    pFileSystemDevice = FileHandle->FileSystemDevice;
-    ASSERT(NULL != pFileSystemDevice);
-
-    pIrp = IoAllocateIrp(pFileSystemDevice->StackSize);
-    if (NULL == pIrp)
-    {
-        LOG_FUNC_ERROR_ALLOC("IoAllocateIrp", sizeof(IRP));
-        return STATUS_HEAP_NO_MORE_MEMORY;
-    }
-    pIrp->Buffer = Buffer;
-
-    // pass async parameter
-    pIrp->Flags.Asynchronous = FileHandle->Flags.Asynchronous;
-
-    pStackLocation = IoGetNextIrpStackLocation(pIrp);
-    pStackLocation->MajorFunction = IRP_MJ_READ;
-    pStackLocation->DeviceObject = pFileSystemDevice;
-
-    // setup parameters
-    pStackLocation->Parameters.ReadWrite.Length = BytesToRead;
-    pStackLocation->Parameters.ReadWrite.Offset = fileOffset;
-    pStackLocation->FileObject = FileHandle;
-    
-    __try
-    {
-        // call file system
-        status = IoCallDriver(pFileSystemDevice, pIrp);
-        if (!SUCCEEDED(status))
-        {
-            LOG_FUNC_ERROR("IoCallDriver", status);
-            __leave;
-        }
-
-        status = pIrp->IoStatus.Status;
-        *BytesRead = pIrp->IoStatus.Information;
-
-        if (SUCCEEDED(status))
-        {
-            // if synchronous operation => update file offset
-            if (!FileHandle->Flags.Asynchronous)
-            {
-                FileHandle->CurrentByteOffset = FileHandle->CurrentByteOffset + *BytesRead;
-            }
-        }
-    }
-    __finally
-    {
-        if (NULL != pIrp)
-        {
-            IoFreeIrp(pIrp);
-            pIrp = NULL;
-        }
-
-        LOG_FUNC_END;
-    }
-
-    return status;
+    return _IoReadWriteFile(FileHandle,
+                            Buffer,
+                            BytesToRead,
+                            FileOffset,
+                            BytesRead,
+                            FALSE);
 }
 
-SAL_SUCCESS
+STATUS
+IoWriteFile(
+    IN          PFILE_OBJECT            FileHandle,
+    IN          QWORD                   BytesToWrite,
+    IN_OPT      QWORD*                  FileOffset,
+    IN_READS_BYTES(BytesToWrite)
+                PVOID                   Buffer,
+    OUT         QWORD*                  BytesWritten
+    )
+{
+    return _IoReadWriteFile(FileHandle,
+                            Buffer,
+                            BytesToWrite,
+                            FileOffset,
+                            BytesWritten,
+                            TRUE);
+}
+
+STATUS
+IoGetFileSize(
+    IN          PFILE_OBJECT            FileHandle,
+    OUT         QWORD*                  FileSize
+    )
+{
+    if (FileHandle == NULL)
+    {
+        return STATUS_INVALID_PARAMETER1;
+    }
+
+    if (FileSize == NULL)
+    {
+        return STATUS_INVALID_PARAMETER2;
+    }
+
+    *FileSize = FileHandle->FileSize;
+
+    return STATUS_SUCCESS;
+}
+
 STATUS
 IoQueryInformationFile(
     IN          PFILE_OBJECT            FileHandle,
@@ -408,7 +371,6 @@ IoQueryInformationFile(
     return status;
 }
 
-SAL_SUCCESS
 STATUS
 IoQueryDirectoryFile(
     IN          PFILE_OBJECT                    FileHandle,
@@ -474,6 +436,113 @@ IoQueryDirectoryFile(
             IoFreeIrp(pIrp);
             pIrp = NULL;
         }
+    }
+
+    return status;
+}
+
+static
+STATUS
+_IoReadWriteFile(
+    IN          PFILE_OBJECT            FileHandle,
+    _When_(!Write,OUT_WRITES_BYTES(Length))
+    _When_(Write,IN_READS_BYTES(Length))
+                PVOID                   Buffer,
+    IN          QWORD                   Length,
+    IN_OPT      QWORD*                  FileOffset,
+    OUT         QWORD*                  BytesTransferred,
+    IN          BOOLEAN                 Write
+    )
+{
+    STATUS status;
+    PIRP pIrp;
+    PDEVICE_OBJECT pFileSystemDevice;
+    PIO_STACK_LOCATION pStackLocation;
+    QWORD fileOffset;
+
+    LOG_FUNC_START;
+
+    ASSERT(NULL != FileHandle);
+    ASSERT(NULL != Buffer);
+    ASSERT(NULL != BytesTransferred);
+
+    status = STATUS_SUCCESS;
+    pIrp = NULL;
+    pFileSystemDevice = NULL;
+    pStackLocation = NULL;
+
+    if (FileHandle->Flags.Asynchronous)
+    {
+        ASSERT(NULL != FileOffset);
+
+        fileOffset = *FileOffset;
+    }
+    else
+    {
+        if (NULL == FileOffset)
+        {
+            fileOffset = FileHandle->CurrentByteOffset;
+        }
+        else
+        {
+            fileOffset = *FileOffset;
+        }
+    }
+
+    pFileSystemDevice = FileHandle->FileSystemDevice;
+    ASSERT(NULL != pFileSystemDevice);
+
+    pIrp = IoAllocateIrp(pFileSystemDevice->StackSize);
+    if (NULL == pIrp)
+    {
+        LOG_FUNC_ERROR_ALLOC("IoAllocateIrp", sizeof(IRP));
+        return STATUS_HEAP_NO_MORE_MEMORY;
+    }
+    pIrp->Buffer = Buffer;
+
+    // pass async parameter
+    pIrp->Flags.Asynchronous = FileHandle->Flags.Asynchronous;
+
+    pStackLocation = IoGetNextIrpStackLocation(pIrp);
+    pStackLocation->MajorFunction = Write ? IRP_MJ_WRITE : IRP_MJ_READ;
+    pStackLocation->DeviceObject = pFileSystemDevice;
+
+    // setup parameters
+    pStackLocation->Parameters.ReadWrite.Length = Length;
+    pStackLocation->Parameters.ReadWrite.Offset = fileOffset;
+    pStackLocation->FileObject = FileHandle;
+
+    __try
+    {
+        // call file system
+        status = IoCallDriver(pFileSystemDevice, pIrp);
+        if (!SUCCEEDED(status))
+        {
+            LOG_FUNC_ERROR("IoCallDriver", status);
+            __leave;
+        }
+
+        status = pIrp->IoStatus.Status;
+        *BytesTransferred = pIrp->IoStatus.Information;
+
+        if (SUCCEEDED(status))
+        {
+            // if synchronous operation => update file offset
+            if (!FileHandle->Flags.Asynchronous)
+            {
+                FileHandle->CurrentByteOffset = FileHandle->CurrentByteOffset + *BytesTransferred;
+            }
+        }
+    }
+    __finally
+    {
+        if (NULL != pIrp)
+        {
+            IoFreeIrp(pIrp);
+            pIrp = NULL;
+        }
+
+        LOG_FUNC_END;
     }
 
     return status;

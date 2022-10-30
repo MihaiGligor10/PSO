@@ -21,13 +21,26 @@ typedef struct _FAT_DATA
     DWORD               AllocationSize;
 } FAT_DATA, *PFAT_DATA;
 
-SAL_SUCCESS
+ typedef
+STATUS
+(__cdecl FUNC_FatReadWriteFile)(
+    IN      PFAT_DATA   FatData,
+    IN      QWORD       BaseFileSector,
+    IN      QWORD       SectorOffset,
+    IN      QWORD       DirEntrySector,
+    IN      PVOID       Buffer,
+    IN      QWORD       SectorsToReadOrWrite,
+    OUT     QWORD*      SectorsReadOrWritten,
+    IN      BOOLEAN     Asynchronous
+    );
+
+typedef FUNC_FatReadWriteFile *PFUNC_FatReadWriteFile;
+
 STATUS
 FatInitVolume(
     INOUT          PFAT_DATA           FatData
     );
 
-SAL_SUCCESS
 STATUS
 FatSearch(
     IN      PFAT_DATA               FatData,
@@ -38,7 +51,6 @@ FatSearch(
     OUT     QWORD*                  ParentSector
     );
 
-SAL_SUCCESS
 STATUS
 FatSearchDirectoryEntry(
     IN      PFAT_DATA               FatData,
@@ -50,19 +62,30 @@ FatSearchDirectoryEntry(
     OUT     QWORD*                  ParentSector
     );
 
-SAL_SUCCESS
 STATUS
 FatReadFile(
     IN      PFAT_DATA   FatData,
     IN      QWORD       BaseFileSector,
     IN      QWORD       SectorOffset,
+    IN      QWORD       DirEntrySector,
     IN      PVOID       Buffer,
     IN      QWORD       SectorsToRead,
     OUT     QWORD*      SectorsRead,
     IN      BOOLEAN     Asynchronous
     );
 
-SAL_SUCCESS
+STATUS
+FatWriteFile(
+    IN      PFAT_DATA   FatData,
+    IN      QWORD       BaseFileSector,
+    IN      QWORD       SectorOffset,
+    IN      QWORD       DirEntrySector,
+    IN      PVOID       Buffer,
+    IN      QWORD       SectorsToWrite,
+    OUT     QWORD*      SectorsWritten,
+    IN      BOOLEAN     Asynchronous
+);
+
 STATUS
 FatCreateDirectoryEntry(
     IN      PFAT_DATA       FatData,
@@ -70,12 +93,11 @@ FatCreateDirectoryEntry(
     IN      BYTE            FileAttributes
     );
 
-SAL_SUCCESS
 STATUS
 FatQueryDirectory(
     IN                                              PFAT_DATA                       FatData,
     IN                                              QWORD                           DirectorySector,
     IN                                              DWORD                           DirectoryInformationSize,
-    OUT_WRITES_BYTES(DirectoryInformationSize)      PFILE_DIRECTORY_INFORMATION     DirectoryInformation,
+    OUT_WRITES_BYTES(DirectoryInformationSize)      FILE_DIRECTORY_INFORMATION      *DirectoryInformation,
     OUT                                             DWORD*                          RequiredDirectionInformationSize
     );

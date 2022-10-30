@@ -3,10 +3,12 @@
 #include "pci_device.h"
 #include "list.h"
 
+#pragma warning(push)
+
 // warning C4214: nonstandard extension used: bit field types other than int
 #pragma warning(disable:4214)
 
-// warning C4201: nonstandard extension used: nameless struct/union 
+// warning C4201: nonstandard extension used: nameless struct/union
 #pragma warning(disable:4201)
 
 typedef struct _PCI_DEVICE_LIST_ENTRY
@@ -45,8 +47,7 @@ typedef struct _PCI_SPEC_LOCATION
     BOOLEAN             MatchDevice     : 1;
     BOOLEAN             MatchFunction   : 1;
 } PCI_SPEC_LOCATION, *PPCI_SPEC_LOCATION;
-#pragma warning(default:4201)
-#pragma warning(default:4214)
+#pragma warning(pop)
 
 void
 PciSystemPreinit(
@@ -58,7 +59,6 @@ PciSystemInit(
     void
     );
 
-SAL_SUCCESS
 STATUS
 PciSystemRetrieveDevices(
     INOUT   PLIST_ENTRY     PciDeviceList
@@ -70,24 +70,22 @@ PciSystemEstablishHierarchy(
     INOUT   PLIST_ENTRY     PciBridgeList
     );
 
-SAL_SUCCESS
 STATUS
 PciSystemFindDevicesMatchingSpecification(
     IN      PLIST_ENTRY     PciDeviceList,
     IN      PCI_SPEC        Specification,
-    OUT_WRITES_OPT(*NumberOfDevices) 
+    OUT_WRITES_OPT(*NumberOfDevices)
             PPCI_DEVICE_DESCRIPTION*    PciDevices,
     _When_(NULL == PciDevices, OUT)
     _When_(NULL != PciDevices, INOUT)
             DWORD*          NumberOfDevices
     );
 
-SAL_SUCCESS
 STATUS
 PciSystemFindDevicesMatchingLocation(
     IN      PLIST_ENTRY                 PciDeviceList,
     IN      PCI_SPEC_LOCATION           Specification,
-    OUT_WRITES_OPT(*NumberOfDevices) 
+    OUT_WRITES_OPT(*NumberOfDevices)
             PPCI_DEVICE_DESCRIPTION*    PciDevices,
     _When_(NULL == PciDevices, OUT)
     _When_(NULL != PciDevices, INOUT)

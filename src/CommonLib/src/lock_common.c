@@ -13,14 +13,16 @@ PFUNC_LockRelease        LockRelease = NULL;
 
 PFUNC_LockIsOwner        LockIsOwner = NULL;
 
+#pragma warning(push)
+// warning C4028: formal parameter 1 different from declaration
+#pragma warning(disable:4028)
+
 void
 LockSystemInit(
     IN      BOOLEAN             MonitorSupport
     )
 {
 
-// warning C4028: formal parameter 1 different from declaration
-#pragma warning(disable:4028)
     if (MonitorSupport)
     {
         // we have monitor support
@@ -39,7 +41,7 @@ LockSystemInit(
         LockIsOwner = SpinlockIsOwner;
         LockRelease = SpinlockRelease;
     }
-#pragma warning(default:4028)
 }
+#pragma warning(pop)
 
 #endif // _COMMONLIB_NO_LOCKS_

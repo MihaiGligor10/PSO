@@ -4,7 +4,6 @@
 
 static WORD m_serialPortNumber = 0;
 
-SAL_SUCCESS
 STATUS
 SerialCommunicationInitialize(
     IN_READS(NoOfPorts)     WORD*           Ports,
@@ -42,7 +41,6 @@ SerialCommunicationInitialize(
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 SerialCommunicationReinitialize(
     void

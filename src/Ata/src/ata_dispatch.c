@@ -62,7 +62,6 @@ _AtaCheckIOParameters(
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 (__cdecl AtaDispatchReadWrite)(
     INOUT       PDEVICE_OBJECT      DeviceObject,
@@ -156,7 +155,6 @@ STATUS
     return STATUS_SUCCESS;
 }
 
-SAL_SUCCESS
 STATUS
 (__cdecl AtaDispatchDeviceControl)(
     INOUT       PDEVICE_OBJECT      DeviceObject,

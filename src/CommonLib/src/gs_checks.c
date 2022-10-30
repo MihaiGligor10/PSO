@@ -1,3 +1,8 @@
+#ifdef CL_NO_RUNTIME_CHECKS
+
+// warning C4206: nonstandard extension used: translation unit is empty
+#pragma warning(disable:4206)
+#else
 #include "common_lib.h"
 
 #define DEFAULT_SECURITY_COOKIE_VALUE       (QWORD)0xBEEF'0301'2497'EC03ULL
@@ -53,3 +58,4 @@ __report_cookie_corruption(
                 "Security cookie is 0x%X but should have been 0x%X. RA is 0x%X\n",
                 StackCookie, __security_cookie, GET_RETURN_ADDRESS);
 }
+#endif // CL_NO_RUNTIME_CHECKS

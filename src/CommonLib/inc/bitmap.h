@@ -1,5 +1,7 @@
 #pragma once
 
+C_HEADER_START
+
 #pragma pack(push,16)
 typedef struct _BITMAP
 {
@@ -124,3 +126,5 @@ BitmapScanFromToAndFlip(
     IN          DWORD       ConsecutiveBits,
     IN          BOOLEAN     Set
 );
+
+C_HEADER_END

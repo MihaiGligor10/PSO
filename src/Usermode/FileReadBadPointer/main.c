@@ -25,8 +25,11 @@ __main(
         LOG_FUNC_ERROR("SyscallFileCreate", status);
     }
 
-     SyscallFileRead(handle, (PVOID) 0x140000000ULL, PAGE_SIZE, &bytesRead);
-     LOG_ERROR("The application should have crashed!!!\n");
+     status = SyscallFileRead(handle, (PVOID) 0x14'0000'0000ULL, PAGE_SIZE, &bytesRead);
+     if (SUCCEEDED(status))
+     {
+         LOG_ERROR("SyscallFileRead should have failed!\n");
+     }
 
     return STATUS_SUCCESS;
 }

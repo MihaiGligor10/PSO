@@ -35,6 +35,11 @@ IomuGetSystemPartitionPath(
     void
     );
 
+PFILE_OBJECT
+IomuGetSwapFile(
+    void
+    );
+
 void
 IomuAckInterrupt(
     IN      BYTE            InterruptIndex
@@ -55,7 +60,6 @@ IomuGetPciDeviceList(
     void
     );
 
-SAL_SUCCESS
 STATUS
 IomuGetDevicesByType(
     IN_RANGE_UPPER(DeviceTypeMax)

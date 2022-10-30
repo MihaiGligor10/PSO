@@ -25,6 +25,14 @@ __main(
     }
     else
     {
+        STATUS termStatus;
+
+        status = SyscallProcessWaitForTermination(hProcess, &termStatus);
+        if (!SUCCEEDED(status))
+        {
+            LOG_FUNC_ERROR("SyscallThreadWaitForTermination", status);
+        }
+
         status = SyscallProcessCloseHandle(hProcess);
         if (!SUCCEEDED(status))
         {

@@ -23,7 +23,6 @@ static APIC_DATA            m_apicData;
 // Returns:       STATUS
 // Parameter:     void
 //******************************************************************************
-SAL_SUCCESS
 STATUS
 static
 _LapicSystemMapRegister(
@@ -32,7 +31,6 @@ _LapicSystemMapRegister(
     );
 
 static
-SAL_SUCCESS
 STATUS
 _LapicInstallInterruptRoutines(
     void
@@ -62,7 +60,6 @@ _LapicInstallInterruptRoutine(
     return IoRegisterInterruptEx(&ioInterrupt, NULL, Vector);
 }
 
-SAL_SUCCESS
 STATUS
 LapicSystemInit(
     void
@@ -99,7 +96,6 @@ LapicSystemInit(
     return status;
 }
 
-SAL_SUCCESS
 STATUS
 LapicSystemInitializeCpu(
     IN      BYTE                            TimerInterruptVector
@@ -178,27 +174,28 @@ LapicSystemSendEOI(
 }
 
 void
-LapicSystemEnableTimer(
+LapicSystemSetTimer(
     IN      DWORD                           Microseconds
     )
 {
     DWORD timerCount;
-    DWORD frequency;
-
-    ASSERT( 0 != Microseconds && Microseconds <= SEC_IN_US );
 
     ASSERT( NULL != m_apicData.LocalApicAddress );
 
-    frequency = ( SEC_IN_US / Microseconds );
-    timerCount = m_apicData.DividedBusFrequency / frequency;
+    timerCount = 0;
 
-    m_apicData.InitialTimerCount = timerCount;
+    if (Microseconds != 0)
+    {
+        ASSERT(Microseconds < MAX_QWORD / m_apicData.DividedBusFrequency);
+        timerCount = ((QWORD)m_apicData.DividedBusFrequency * Microseconds) / SEC_IN_US;
 
-    LOGL("DividedBusFrequency: 0x%x\n", m_apicData.DividedBusFrequency);
-    LOGL("Frequency: 0x%x\n", frequency);
-    LOGL("timerCount: 0x%x\n", timerCount);
+        m_apicData.InitialTimerCount = timerCount;
 
-    LapicEnableTimer(m_apicData.LocalApicAddress, timerCount );
+        LOGL("DividedBusFrequency: 0x%x\n", m_apicData.DividedBusFrequency);
+        LOGL("timerCount: 0x%x\n", timerCount);
+    }
+
+    LapicSetTimerInterval(m_apicData.LocalApicAddress, timerCount);
 }
 
 void
@@ -270,7 +267,6 @@ LapicSystemIsInterruptServiced(
     return LapicIsInterruptServiced(m_apicData.LocalApicAddress, Vector);
 }
 
-SAL_SUCCESS
 STATUS
 static
 _LapicSystemMapRegister(
@@ -298,7 +294,6 @@ _LapicSystemMapRegister(
 }
 
 static
-SAL_SUCCESS
 STATUS
 _LapicInstallInterruptRoutines(
     void

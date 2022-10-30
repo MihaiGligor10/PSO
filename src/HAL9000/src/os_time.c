@@ -1,7 +1,6 @@
 #include "HAL9000.h"
 #include "os_time.h"
 #include "cmos.h"
-#include "string.h"
 
 DATETIME
 OsTimeGetCurrentDateTime(
@@ -28,7 +27,6 @@ OsTimeGetCurrentDateTime(
     return result;
 }
 
-SAL_SUCCESS
 STATUS
 OsTimeGetStringFormattedTime(
     IN_OPT                      PDATETIME       DateTime,

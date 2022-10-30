@@ -54,7 +54,7 @@ __main(
             __leave;
         }
 
-        LOG("Secondary thread has finished execution!\n");
+        LOG("Secondary thread has finished execution!");
 
         if (terminationStatus != STATUS_SUCCESS)
         {

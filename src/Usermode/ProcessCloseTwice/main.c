@@ -10,6 +10,7 @@ __main(
 {
     STATUS status;
     UM_HANDLE hProcess;
+    STATUS termStatus;
 
     UNREFERENCED_PARAMETER(argc);
     UNREFERENCED_PARAMETER(argv);
@@ -24,6 +25,13 @@ __main(
         if (!SUCCEEDED(status))
         {
             LOG_FUNC_ERROR("SyscallProcessCreate", status);
+            __leave;
+        }
+
+        status = SyscallProcessWaitForTermination(hProcess, &termStatus);
+        if (!SUCCEEDED(status))
+        {
+            LOG_FUNC_ERROR("SyscallThreadWaitForTermination", status);
             __leave;
         }
 
