@@ -1,6 +1,8 @@
 #pragma once
 
+//#include "mutex.h"
 #include "thread_defs.h"
+
 
 //******************************************************************************
 // Function:     ThreadCreate
@@ -119,3 +121,20 @@ THREAD_PRIORITY
 ThreadGetPriority(
     IN_OPT  PTHREAD             Thread
     );
+
+
+
+
+INT64 ThreadComparePriorityReadyList(
+    IN PLIST_ENTRY e1,
+    IN PLIST_ENTRY e2,
+    IN PVOID Context
+);
+
+void ThreadDonatePriority(
+    IN       PTHREAD      crtT
+);
+/*
+void ThreadRecomputePriority(
+    IN PMUTEX mutex
+);*/

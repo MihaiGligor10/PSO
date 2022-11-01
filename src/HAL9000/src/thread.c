@@ -9,6 +9,8 @@
 #include "isr.h"
 #include "gdtmu.h"
 #include "pe_exports.h"
+#include "mutex.h"
+#include "smp.h"
 
 #define TID_INCREMENT               10
 
@@ -38,6 +40,10 @@ typedef struct _THREAD_SYSTEM_DATA
 
     _Guarded_by_(ReadyThreadsLock)
     LIST_ENTRY          ReadyThreadsList;
+
+    _Guarded_by_(ReadyThreadsLock) 
+        THREAD_PRIORITY RunningThreadsMinPriority;
+
 } THREAD_SYSTEM_DATA, *PTHREAD_SYSTEM_DATA;
 
 static THREAD_SYSTEM_DATA m_threadSystemData;
@@ -133,6 +139,17 @@ _ThreadKernelFunction(
     );
 
 static FUNC_ThreadStart     _IdleThread;
+
+
+/*THREAD_PRIORITY ThreadRecomputePriority(
+    INOUT       PMUTEX      Mutex
+);
+
+void ThreadDonatePriority(
+    INOUT       PMUTEX      Mutex,
+    IN       PTHREAD      crtT
+);*/
+
 
 void
 _No_competing_thread_
@@ -451,6 +468,42 @@ ThreadTick(
     }
 }
 
+
+
+INT64 compare_and_return_result(THREAD_PRIORITY prio1, THREAD_PRIORITY prio2) {
+    if (prio1 < prio2) {
+        return 1;
+    }
+    else if (prio1 == prio2) {
+        return 1;
+    }
+    else {
+        return -1;
+    }
+
+}
+
+
+INT64 ThreadComparePriorityReadyList(
+    IN PLIST_ENTRY e1,
+    IN PLIST_ENTRY e2,
+    IN PVOID Context
+) {
+    UNREFERENCED_PARAMETER(Context);
+    PTHREAD pTh1;
+    pTh1 = CONTAINING_RECORD(e1, THREAD, ReadyList);
+    PTHREAD pTh2;
+    pTh2 = CONTAINING_RECORD(e2, THREAD, ReadyList);
+
+    THREAD_PRIORITY prio1, prio2;
+    prio2 = ThreadGetPriority(pTh2);
+    prio1 = ThreadGetPriority(pTh1);
+    return compare_and_return_result(prio1, prio2);
+}
+
+
+
+
 void
 ThreadYield(
     void
@@ -482,7 +535,7 @@ ThreadYield(
     LockAcquire(&m_threadSystemData.ReadyThreadsLock, &dummyState);
     if (pThread != pCpu->ThreadData.IdleThread)
     {
-        InsertTailList(&m_threadSystemData.ReadyThreadsList, &pThread->ReadyList);
+        InsertOrderedList(&m_threadSystemData.ReadyThreadsList, &pThread->ReadyList, ThreadComparePriorityReadyList,NULL);
     }
     if (!bForcedYield)
     {
@@ -522,6 +575,16 @@ ThreadBlock(
     ASSERT( !LockIsOwner(&m_threadSystemData.ReadyThreadsLock));
 }
 
+
+STATUS ThreadYieldForIpi(IN_OPT PVOID Context) {
+    UNREFERENCED_PARAMETER(Context);
+    PCPU* currentPpcu = GetCurrentPcpu();
+    currentPpcu->ThreadData.YieldOnInterruptReturn = TRUE;
+    return STATUS_SUCCESS;
+
+}
+
+
 void
 ThreadUnblock(
     IN      PTHREAD              Thread
@@ -537,10 +600,17 @@ ThreadUnblock(
     ASSERT(ThreadStateBlocked == Thread->State);
 
     LockAcquire(&m_threadSystemData.ReadyThreadsLock, &dummyState);
-    InsertTailList(&m_threadSystemData.ReadyThreadsList, &Thread->ReadyList);
+    InsertOrderedList(&m_threadSystemData.ReadyThreadsList, &Thread->ReadyList, ThreadComparePriorityReadyList,NULL);
     Thread->State = ThreadStateReady;
     LockRelease(&m_threadSystemData.ReadyThreadsLock, dummyState );
     LockRelease(&Thread->BlockLock, oldState);
+
+
+    SMP_DESTINATION dest = { 0 };
+    SmpSendGenericIpiEx(ThreadYieldForIpi, NULL, NULL, NULL,
+        FALSE, SmpIpiSendToAllIncludingSelf, dest);
+
+
 }
 
 void
@@ -1262,3 +1332,61 @@ _ThreadKernelFunction(
     ThreadExit(exitStatus);
     NOT_REACHED;
 }
+
+
+
+void ThreadDonatePriority(
+    IN       PTHREAD      crtT
+) {
+    PTHREAD auxCT = crtT;
+    PTHREAD MutexHolder = crtT->WaitedMutex->Holder;
+    THREAD_PRIORITY holderPrio;
+    THREAD_PRIORITY crtPrio;
+
+    
+
+
+    while (MutexHolder != NULL)
+    {
+
+        crtPrio = ThreadGetPriority(auxCT);
+        holderPrio = ThreadGetPriority(MutexHolder);
+        if (holderPrio < crtPrio)
+        {
+            MutexHolder->Priority = crtPrio;
+        }
+
+        auxCT = MutexHolder;
+
+        if (auxCT->WaitedMutex == NULL) {
+            MutexHolder = NULL;
+        }
+        else {
+
+            MutexHolder = auxCT->WaitedMutex->Holder;
+
+        }
+    }
+}
+/*
+void ThreadRecomputePriority(
+    IN      PMUTEX      mutex
+) {
+    THREAD_PRIORITY maxim = mutex->Holder->RealPriority;
+
+    for (PLIST_ENTRY e = mutex->Holder->AcquiredMutexesList.Flink; e != &mutex->Holder->AcquiredMutexesList; e = e->Flink)
+    {
+        PMUTEX m = CONTAINING_RECORD(e, MUTEX, WaitingList);
+
+        for (PLIST_ENTRY e2 = m->WaitingList.Flink; e2 != &m->WaitingList; e2 = e2->Flink)
+        {
+            PTHREAD t = CONTAINING_RECORD(e, THREAD, Priority);
+            if (maxim < t->Priority)
+            {
+                maxim = t->Priority;
+            }
+        }
+    }
+
+    mutex->Holder->Priority = maxim;
+}*/

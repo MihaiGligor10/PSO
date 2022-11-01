@@ -1,6 +1,7 @@
 #include "HAL9000.h"
 #include "thread_internal.h"
 #include "mutex.h"
+#include "thread.h"
 
 #define MUTEX_MAX_RECURSIVITY_DEPTH         MAX_BYTE
 
@@ -9,9 +10,9 @@ void
 MutexInit(
     OUT         PMUTEX      Mutex,
     IN          BOOLEAN     Recursive
-    )
+)
 {
-    ASSERT( NULL != Mutex );
+    ASSERT(NULL != Mutex);
 
     memzero(Mutex, sizeof(MUTEX));
 
@@ -27,19 +28,19 @@ REQUIRES_NOT_HELD_LOCK(*Mutex)
 void
 MutexAcquire(
     INOUT       PMUTEX      Mutex
-    )
+)
 {
     INTR_STATE dummyState;
     INTR_STATE oldState;
     PTHREAD pCurrentThread = GetCurrentThread();
-    PTHREAD auxCT = pCurrentThread;
+  
 
-    ASSERT( NULL != Mutex);
-    ASSERT( NULL != pCurrentThread );
+    ASSERT(NULL != Mutex);
+    ASSERT(NULL != pCurrentThread);
 
     if (pCurrentThread == Mutex->Holder)
     {
-        ASSERT( Mutex->CurrentRecursivityDepth < Mutex->MaxRecursivityDepth );
+        ASSERT(Mutex->CurrentRecursivityDepth < Mutex->MaxRecursivityDepth);
 
         Mutex->CurrentRecursivityDepth++;
         return;
@@ -47,61 +48,31 @@ MutexAcquire(
 
     oldState = CpuIntrDisable();
 
-    LockAcquire(&Mutex->MutexLock, &dummyState );
+    LockAcquire(&Mutex->MutexLock, &dummyState);
     if (NULL == Mutex->Holder)
     {
         Mutex->Holder = pCurrentThread;
         Mutex->CurrentRecursivityDepth = 1;
     }
-    
-    
-    
-
 
     while (Mutex->Holder != pCurrentThread)
     {
-        InsertTailList(&Mutex->WaitingList, &pCurrentThread->ReadyList);
+        InsertOrderedList(&Mutex->WaitingList, &pCurrentThread->ReadyList, ThreadComparePriorityReadyList, NULL);
         ThreadTakeBlockLock();
         LockRelease(&Mutex->MutexLock, dummyState);
+        /// /////////////////////////////////////////////
+        pCurrentThread->WaitedMutex = Mutex;
+        if (ThreadGetPriority(pCurrentThread) > ThreadGetPriority(Mutex->Holder))
+        {
+            ThreadDonatePriority(pCurrentThread);
+        }
+        /// /////////////////////////////////////////////
         ThreadBlock();
-        LockAcquire(&Mutex->MutexLock, &dummyState );
-
-
-        THREAD_PRIORITY holderPrio= ThreadGetPriority(Mutex->Holder);
-        THREAD_PRIORITY crtPrio  = ThreadGetPriority(pCurrentThread);
-        
-        if (auxCT->WaitedMutex == NULL)
-        {
-            Mutex->Holder = NULL;
-        }
-
-        while (Mutex->Holder != NULL)
-        {
-            
-            
-            if (holderPrio < crtPrio)
-            {
-                Mutex->Holder->Priority = crtPrio;
-            }
-            
-            auxCT = Mutex->Holder;
-            
-            Mutex->Holder = auxCT->WaitedMutex->Holder;
-            crtPrio = ThreadGetPriority(auxCT);
-            holderPrio = ThreadGetPriority(Mutex->Holder);
-
-           
-        }
-     
-
+        LockAcquire(&Mutex->MutexLock, &dummyState);
     }
 
-    
     _Analysis_assume_lock_acquired_(*Mutex);
-
-
     //InsertTailList(&pCurrentThread->AcquiredMutexesList, &Mutex->AcquiredMutexListElem);
-
     LockRelease(&Mutex->MutexLock, dummyState);
 
     CpuIntrSetState(oldState);
@@ -112,7 +83,7 @@ REQUIRES_EXCL_LOCK(*Mutex)
 void
 MutexRelease(
     INOUT       PMUTEX      Mutex
-    )
+)
 {
     INTR_STATE oldState;
     PLIST_ENTRY pEntry;
@@ -129,13 +100,27 @@ MutexRelease(
     pEntry = NULL;
 
     LockAcquire(&Mutex->MutexLock, &oldState);
-
     /*
-    if (Mutex -> Holder->Priority != Mutex->Holder -> RealPriority)
+    THREAD_PRIORITY maxim = Mutex->Holder->RealPriority;
+
+    for (PLIST_ENTRY e = Mutex->Holder->AcquiredMutexesList.Flink; e != &Mutex->Holder->AcquiredMutexesList; e = e->Flink)
     {
-        Mutex -> Holder->Priority = Mutex -> Holder->RealPriority;
+        PMUTEX m = CONTAINING_RECORD(e, MUTEX, WaitingList);
+
+        for (PLIST_ENTRY e2 = m->WaitingList.Flink; e2 != &m->WaitingList; e2 = e2->Flink)
+        {
+            PTHREAD t = CONTAINING_RECORD(e, THREAD, Priority);
+            if (maxim < t->Priority)
+            {
+                maxim = t->Priority;
+            }
+        }
     }
-       */
+
+    Mutex->Holder->Priority = maxim;
+*/
+
+   // ThreadRecomputePriority(Mutex);
 
     pEntry = RemoveHeadList(&Mutex->WaitingList);
     if (pEntry != &Mutex->WaitingList)
