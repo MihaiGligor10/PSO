@@ -53,9 +53,6 @@ typedef struct _THREAD
 
     volatile THREAD_FLAGS   Flags;
 
-    MUTEX                  AuxMutex;
-
-
     // Lock which ensures there are no race cond
     // 
     // itions between a thread that
@@ -71,7 +68,6 @@ typedef struct _THREAD
     // List of the threads in the same process
     LIST_ENTRY              ProcessList;
 
-    _Guarded_by_(AuxMutex)
     LIST_ENTRY              AcquiredMutexesList;////////////////////////////////
 
 

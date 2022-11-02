@@ -870,6 +870,8 @@ _ThreadInit(
 
         pThread->RealPriority = pThread->Priority;
         pThread->WaitedMutex = NULL;
+		InitializeListHead(&pThread->AcquiredMutexesList);
+
 
         LockInit(&pThread->BlockLock);
 
@@ -894,11 +896,6 @@ _ThreadInit(
         {
             LOG("Thread 0x%X with name %s just started \n", pThread->Id, pThread->Name);
         }
-
-       
-        InitializeListHead(&pThread->AcquiredMutexesList);
-        
-       
        
        
         *Thread = pThread;

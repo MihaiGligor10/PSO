@@ -53,6 +53,7 @@ MutexAcquire(
     {
         Mutex->Holder = pCurrentThread;
         Mutex->CurrentRecursivityDepth = 1;
+        pCurrentThread->WaitedMutex = NULL;
     }
 
     while (Mutex->Holder != pCurrentThread)
@@ -72,7 +73,7 @@ MutexAcquire(
     }
 
     _Analysis_assume_lock_acquired_(*Mutex);
-    //InsertTailList(&pCurrentThread->AcquiredMutexesList, &Mutex->AcquiredMutexListElem);
+    InsertHeadList(&pCurrentThread->AcquiredMutexesList, &Mutex->AcquiredMutexListElem);
     LockRelease(&Mutex->MutexLock, dummyState);
 
     CpuIntrSetState(oldState);
@@ -121,7 +122,7 @@ MutexRelease(
 */
 
    // ThreadRecomputePriority(Mutex);
-
+    RemoveEntryList(&Mutex->AcquiredMutexListElem);
     pEntry = RemoveHeadList(&Mutex->WaitingList);
     if (pEntry != &Mutex->WaitingList)
     {
@@ -136,6 +137,8 @@ MutexRelease(
     {
         Mutex->Holder = NULL;
     }
+
+     
 
     _Analysis_assume_lock_released_(*Mutex);
 
