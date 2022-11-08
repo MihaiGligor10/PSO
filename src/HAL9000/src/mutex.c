@@ -19,6 +19,7 @@ MutexInit(
     LockInit(&Mutex->MutexLock);
 
     InitializeListHead(&Mutex->WaitingList);
+    InitializeListHead(&Mutex->AcquiredMutexListElem);
 
     Mutex->MaxRecursivityDepth = Recursive ? MUTEX_MAX_RECURSIVITY_DEPTH : 1;
 }
@@ -101,28 +102,39 @@ MutexRelease(
     pEntry = NULL;
 
     LockAcquire(&Mutex->MutexLock, &oldState);
-    /*
+
+    RemoveEntryList(&Mutex->AcquiredMutexListElem);
+    
     THREAD_PRIORITY maxim = Mutex->Holder->RealPriority;
+
+    LOG("%d  prioritatea lui mutexholder real priority la inceput , la initializare\n",maxim);
+    LOG("%d  prioritatea lui mutexholder priority la inceput , la initializare\n", Mutex->Holder->Priority);
 
     for (PLIST_ENTRY e = Mutex->Holder->AcquiredMutexesList.Flink; e != &Mutex->Holder->AcquiredMutexesList; e = e->Flink)
     {
-        PMUTEX m = CONTAINING_RECORD(e, MUTEX, WaitingList);
+        PMUTEX m = CONTAINING_RECORD(e, MUTEX, AcquiredMutexListElem);
 
         for (PLIST_ENTRY e2 = m->WaitingList.Flink; e2 != &m->WaitingList; e2 = e2->Flink)
         {
-            PTHREAD t = CONTAINING_RECORD(e, THREAD, Priority);
+            PTHREAD t = CONTAINING_RECORD(e2, THREAD, ReadyList);
+            LOG("%d  prioritatea lui t->Priority 2 second\n", t->Priority);
+            LOG("Is thread null? %d\n", (t != NULL));
             if (maxim < t->Priority)
             {
                 maxim = t->Priority;
+                LOG("%d  prioritatea lui t->Priority\n", t->Priority);
             }
         }
     }
 
+    
+
+    LOG("%d  prioritatea lui maxim\n", maxim);
     Mutex->Holder->Priority = maxim;
-*/
+
 
    // ThreadRecomputePriority(Mutex);
-    RemoveEntryList(&Mutex->AcquiredMutexListElem);
+    
     pEntry = RemoveHeadList(&Mutex->WaitingList);
     if (pEntry != &Mutex->WaitingList)
     {
@@ -141,6 +153,6 @@ MutexRelease(
      
 
     _Analysis_assume_lock_released_(*Mutex);
-
+    //RemoveEntryList(&Mutex->AcquiredMutexListElem);
     LockRelease(&Mutex->MutexLock, oldState);
 }

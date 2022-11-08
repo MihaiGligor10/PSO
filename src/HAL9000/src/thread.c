@@ -868,7 +868,7 @@ _ThreadInit(
         pThread->State = ThreadStateBlocked;
         pThread->Priority = Priority;
 
-        pThread->RealPriority = pThread->Priority;
+        pThread->RealPriority = Priority;
         pThread->WaitedMutex = NULL;
 		InitializeListHead(&pThread->AcquiredMutexesList);
 
