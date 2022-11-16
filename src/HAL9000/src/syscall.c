@@ -7,6 +7,7 @@
 #include "mmu.h"
 #include "process_internal.h"
 #include "dmp_cpu.h"
+#include "thread_internal.h"
 
 extern void SyscallEntry();
 
@@ -66,6 +67,18 @@ SyscallHandler(
         {
         case SyscallIdIdentifyVersion:
             status = SyscallValidateInterface((SYSCALL_IF_VERSION)*pSyscallParameters);
+            break;
+
+       /* case SyscallIdFileWrite:
+            status = SyscallFileWrite((UM_HANDLE) pSyscallParameters[0] , UM_FILE_HANDLE_STDOUT, (QWORD)pSyscallParameters[2], (QWORD)pSyscallParameters[3]);
+            break;*/
+
+        case SyscallIdProcessExit:
+            ProcessTerminate((PPROCESS)pSyscallParameters[0]);
+            break;
+
+        case SyscallIdThreadExit:
+            ThreadExit((STATUS)pSyscallParameters[0]);
             break;
         // STUDENT TODO: implement the rest of the syscalls
         default:
@@ -170,3 +183,20 @@ SyscallValidateInterface(
 }
 
 // STUDENT TODO: implement the rest of the syscalls
+/*
+STATUS
+SyscallFileWrite(
+    IN UM_HANDLE FileHandle,
+    IN_READS_BYTES(BytesToWrite) 
+    PVOID Buffer,
+    IN QWORD BytesToWrite,
+    OUT QWORD * BytesWritten)
+{
+    UNREFERENCED_PARAMETER(FileHandle);
+    UNREFERENCED_PARAMETER(BytesToWrite);
+    
+        LOG("[%s]\n", ProcessGetName(NULL));
+        *BytesWritten = 8;
+
+}*/
+    
