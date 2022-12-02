@@ -172,6 +172,16 @@ _IsrExceptionHandler(
         }
     }
 
+    if (!exceptionHandled)
+    {
+        if (!GdtIsSegmentPrivileged((WORD)StackPointer->Registers.CS))
+        {
+            ProcessTerminate(NULL);
+            exceptionHandled = TRUE;
+        }
+    }
+
+
     ASSERT_INFO(exceptionHandled, "Exception 0x%x was not handled\n", InterruptIndex);
 }
 

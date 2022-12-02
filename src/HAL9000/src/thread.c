@@ -939,8 +939,9 @@ _ThreadSetupInitialState(
 //  -----------------------------------------------------------------
 //  USER STACK BASE
 static
-STATUS
+STATUS 
 _ThreadSetupMainThreadUserStack(
+
     IN      PVOID               InitialStack,
     OUT     PVOID*              ResultingStack,
     IN      PPROCESS            Process
@@ -950,7 +951,26 @@ _ThreadSetupMainThreadUserStack(
     ASSERT(ResultingStack != NULL);
     ASSERT(Process != NULL);
 
-    *ResultingStack = (PVOID)PtrDiff(InitialStack, SHADOW_STACK_SIZE + sizeof(PVOID));
+    DWORD argc = Process->NumberOfArguments;
+    int pos=-1;
+    char* context = NULL;
+   
+    char** argv=(char**)ExAllocatePoolWithTag(PoolAllocateZeroMemory, argc * sizeof(char*), (DWORD)100, 0);
+
+#pragma warning(disable:4090)
+    char* token = strtok_s(Process->FullCommandLine," ", &context);
+
+    while (token != NULL) {
+        pos++; 
+        DWORD length = strlen(token);
+        argv[pos] = (char*)ExAllocatePoolWithTag(PoolAllocateZeroMemory,(length + 1) * sizeof(char), (DWORD)100 + pos + 1, 0);
+        strncpy(argv[pos], token,length); 
+       
+        token = (char*)strtok_s(NULL, " ", &context);    
+    }
+
+    QWORD stack_size = SHADOW_STACK_SIZE + sizeof(PVOID) + sizeof(argv);
+    *ResultingStack = (PVOID)PtrDiff(InitialStack, stack_size);
 
     return STATUS_SUCCESS;
 }
