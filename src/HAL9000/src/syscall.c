@@ -69,9 +69,9 @@ SyscallHandler(
             status = SyscallValidateInterface((SYSCALL_IF_VERSION)*pSyscallParameters);
             break;
 
-       /* case SyscallIdFileWrite:
-            status = SyscallFileWrite((UM_HANDLE) pSyscallParameters[0] , UM_FILE_HANDLE_STDOUT, (QWORD)pSyscallParameters[2], (QWORD)pSyscallParameters[3]);
-            break;*/
+        case SyscallIdFileWrite:
+            status = SyscallFileWrite((UM_HANDLE) pSyscallParameters[0] , (PVOID)pSyscallParameters[1], (QWORD)pSyscallParameters[2], &(QWORD)pSyscallParameters[3]);
+            break;
 
         case SyscallIdProcessExit:
             ProcessTerminate((PPROCESS)pSyscallParameters[0]);
@@ -81,6 +81,12 @@ SyscallHandler(
             ThreadExit((STATUS)pSyscallParameters[0]);
             break;
         // STUDENT TODO: implement the rest of the syscalls
+        case SyscallIdProcessGetNumberOfPages:
+            status = SyscallProcessGetNumberOfPages(&(DWORD)pSyscallParameters[0], &(DWORD)pSyscallParameters[1]);
+            break;
+        case SyscallIdReadMemory:
+            status = SyscallReadMemory((PBYTE)pSyscallParameters[0], (PBYTE)pSyscallParameters[1]);
+            break;
         default:
             LOG_ERROR("Unimplemented syscall called from User-space!\n");
             status = STATUS_UNSUPPORTED;
@@ -183,7 +189,7 @@ SyscallValidateInterface(
 }
 
 // STUDENT TODO: implement the rest of the syscalls
-/*
+
 STATUS
 SyscallFileWrite(
     IN UM_HANDLE FileHandle,
@@ -193,10 +199,33 @@ SyscallFileWrite(
     OUT QWORD * BytesWritten)
 {
     UNREFERENCED_PARAMETER(FileHandle);
-    UNREFERENCED_PARAMETER(BytesToWrite);
+    UNREFERENCED_PARAMETER(BytesToWrite); 
+   // UNREFERENCED_PARAMETER(Buffer);
     
-        LOG("[%s]\n", ProcessGetName(NULL));
+        LOG("[%s]:[%s]\n", ProcessGetName(NULL),&Buffer);
         *BytesWritten = 8;
-
-}*/
+        return 0;
+}
     
+
+STATUS
+SyscallProcessGetNumberOfPages(
+    OUT     DWORD* PagesCommitted,
+    OUT     DWORD* PagesReserved
+)
+{
+    UNREFERENCED_PARAMETER(PagesCommitted);
+    UNREFERENCED_PARAMETER(PagesReserved);
+    return STATUS_SUCCESS;
+}
+
+STATUS
+SyscallReadMemory(
+    IN_READS(1)     PBYTE   Address,
+    OUT             PBYTE   ValueRead
+) 
+{
+    UNREFERENCED_PARAMETER(Address);
+    UNREFERENCED_PARAMETER(ValueRead);
+    return STATUS_SUCCESS;
+}

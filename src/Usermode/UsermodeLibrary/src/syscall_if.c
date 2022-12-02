@@ -196,3 +196,22 @@ SyscallFileWrite(
 {
     return SyscallEntry(SyscallIdFileWrite, FileHandle, Buffer, BytesToWrite, BytesWritten);
 }
+
+STATUS
+SyscallProcessGetNumberOfPages(
+    OUT     DWORD* PagesCommitted,
+    OUT     DWORD* PagesReserved
+) 
+{
+    return SyscallEntry(SyscallIdProcessGetNumberOfPages, PagesCommitted, PagesReserved);
+}
+
+
+STATUS
+SyscallReadMemory(
+    IN_READS(1)     PBYTE   Address,
+    OUT             PBYTE   ValueRead
+)
+{
+    return SyscallEntry(SyscallIdReadMemory, Address, ValueRead);
+}
