@@ -225,6 +225,7 @@ SyscallReadMemory(
     OUT             PBYTE   ValueRead
 ) 
 {
+    //MmuIsBufferValid();
     UNREFERENCED_PARAMETER(Address);
     UNREFERENCED_PARAMETER(ValueRead);
     return STATUS_SUCCESS;
