@@ -950,8 +950,79 @@ _ThreadSetupMainThreadUserStack(
     ASSERT(ResultingStack != NULL);
     ASSERT(Process != NULL);
 
-    *ResultingStack = (PVOID)PtrDiff(InitialStack, SHADOW_STACK_SIZE + sizeof(PVOID));
 
+    DWORD argc = Process->NumberOfArguments;
+    int pos = 0;
+    char* context = NULL;
+    char** argv = (char**)ExAllocatePoolWithTag(PoolAllocateZeroMemory, argc * sizeof(char*), (DWORD)100, 0);
+#pragma warning(disable:4090)
+    char* token = strtok_s(Process->FullCommandLine, " ", &context);
+    while (token != NULL) {
+
+        DWORD length = strlen(token);
+        argv[pos] = (char*)ExAllocatePoolWithTag(PoolAllocateZeroMemory, (length + 1) * sizeof(char), (DWORD)100 + pos + 1, 0);
+        
+        strncpy(argv[pos++], token, length);
+        token = (char*)strtok_s(NULL, " ", &context);
+    }
+
+    //here we also compute the stack size
+    QWORD cmd_size = strlen(Process->FullCommandLine) + 1;
+    DWORD padding = 0;
+    if (cmd_size % 8 != 0)
+    {
+        padding = 8 - (cmd_size % 8);
+    }
+    cmd_size = cmd_size + SHADOW_STACK_SIZE + sizeof(argc) + argc * sizeof(argv);
+
+    if ((cmd_size+padding) % 16 != 0)
+    {
+        padding = 16 - ((cmd_size+padding) % 16);
+    }
+    cmd_size = cmd_size +  padding;
+
+
+    PVOID kernelVM;
+    MmuGetSystemVirtualAddressForUserBuffer(
+        InitialStack,
+        cmd_size,
+        PAGE_RIGHTS_WRITE,
+        Process,
+        &kernelVM
+    );
+
+    PVOID currentStackAddress = (char*)PtrDiff(kernelVM, cmd_size);
+    char** parAddressOnStack = (char**)ExAllocatePoolWithTag(PoolAllocateZeroMemory, argc * sizeof(char*), (DWORD)100, 0);
+
+    for (int i = argc-1; i <= 0; i--)
+    {
+        strncpy(currentStackAddress, argv[i], strlen(argv[i])+1);
+        parAddressOnStack[i] = currentStackAddress;
+        currentStackAddress = PtrOffset(currentStackAddress, strlen(argv[i] + 1)) ;
+    }
+
+    memset(currentStackAddress, 0, padding);
+    currentStackAddress = PtrOffset(currentStackAddress, padding);
+
+    for (int i = argc - 1; i <= 0; i--)
+    {
+        *((char**)currentStackAddress) = parAddressOnStack[i];
+        currentStackAddress = PtrOffset(currentStackAddress, sizeof(parAddressOnStack[i])); 
+    }
+
+    memset(currentStackAddress, 0, SHADOW_STACK_SIZE);
+    currentStackAddress = PtrOffset(currentStackAddress, SHADOW_STACK_SIZE); 
+
+
+    currentStackAddress = (PVOID)PtrDiff(currentStackAddress, SHADOW_STACK_SIZE+sizeof(char*));
+
+    currentStackAddress = PtrOffset(currentStackAddress, sizeof(char**));
+    *(QWORD*)currentStackAddress = argc;
+
+
+    MmuFreeSystemVirtualAddressForUserBuffer(kernelVM);
+
+    *ResultingStack = (PVOID)PtrDiff(InitialStack,cmd_size);
     return STATUS_SUCCESS;
 }
 
