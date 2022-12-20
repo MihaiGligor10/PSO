@@ -942,87 +942,139 @@ static
 STATUS
 _ThreadSetupMainThreadUserStack(
     IN      PVOID               InitialStack,
-    OUT     PVOID*              ResultingStack,
+    OUT     PVOID* ResultingStack,
     IN      PPROCESS            Process
-    )
+)
 {
     ASSERT(InitialStack != NULL);
     ASSERT(ResultingStack != NULL);
     ASSERT(Process != NULL);
 
 
+    PVOID crtProcStack = InitialStack;
+
     DWORD argc = Process->NumberOfArguments;
     int pos = 0;
     char* context = NULL;
+
+    //LOG("inainte de alloc la argv \n");
+
     char** argv = (char**)ExAllocatePoolWithTag(PoolAllocateZeroMemory, argc * sizeof(char*), (DWORD)100, 0);
 #pragma warning(disable:4090)
     char* token = strtok_s(Process->FullCommandLine, " ", &context);
+    QWORD cmd_size = 0;
+    //separam command line ul in tokeni
     while (token != NULL) {
-
+        //memoram lungimea token ului
         DWORD length = strlen(token);
-        argv[pos] = (char*)ExAllocatePoolWithTag(PoolAllocateZeroMemory, (length + 1) * sizeof(char), (DWORD)100 + pos + 1, 0);
-        
-        strncpy(argv[pos++], token, length);
+        cmd_size += (length + 1);
+        //alocam memorie pentru argv[pos]
+        argv[pos] = (char*)ExAllocatePoolWithTag(PoolAllocateZeroMemory, (length + 1) * sizeof(char), HEAP_THREAD_TAG, 0); // acolesa - aici aveai ceva ciudat pe pozitia TAG-ului
+        //copiem valoarea token ului in argv[pos]
+        strncpy(argv[pos++], token, length + 1); // acolesa - cred ca e length + 1
+        //trecem la urmatorul token
         token = (char*)strtok_s(NULL, " ", &context);
     }
 
-    //here we also compute the stack size
-    QWORD cmd_size = strlen(Process->FullCommandLine) + 1;
+    //LOG("dupa tokeni \n");
+    //incepem sa calculam de cata memorie avem nevoie pentru a o putea mapa
+    
     DWORD padding = 0;
+    //daca command line ul nu e multimplu de 8 , calculam padding ul necesar
     if (cmd_size % 8 != 0)
     {
         padding = 8 - (cmd_size % 8);
     }
-    cmd_size = cmd_size + SHADOW_STACK_SIZE + sizeof(argc) + argc * sizeof(argv);
-
-    if ((cmd_size+padding) % 16 != 0)
+    //calculam memoria pe care o avem pana acum, fara padding
+    cmd_size = cmd_size + SHADOW_STACK_SIZE + argc * sizeof(PVOID) + sizeof(PVOID);
+    //ne asiguram ca stack ul e aliniat la 16 daca adaugam padding ul
+    //daca nu e aliniat , schimbam valoarea padding ului astfel incat sa fie ok 
+    if ((cmd_size + padding) % 16 == 0)
     {
-        padding = 16 - ((cmd_size+padding) % 16);
+        padding += 8;
     }
-    cmd_size = cmd_size +  padding;
+    cmd_size = cmd_size + padding;
 
-
+    //folosim aceasta functie pentru virtual mapping pe kernel , 
+    //mapand cantitatea de memorie calculata mai sus 
+    
     PVOID kernelVM;
     MmuGetSystemVirtualAddressForUserBuffer(
-        InitialStack,
-        cmd_size,
+        (PVOID)PtrDiff(InitialStack, STACK_DEFAULT_SIZE),
+        STACK_DEFAULT_SIZE,
+        //cmd_size,
         PAGE_RIGHTS_WRITE,
         Process,
         &kernelVM
     );
+   
 
-    PVOID currentStackAddress = (char*)PtrDiff(kernelVM, cmd_size);
-    char** parAddressOnStack = (char**)ExAllocatePoolWithTag(PoolAllocateZeroMemory, argc * sizeof(char*), (DWORD)100, 0);
-
-    for (int i = argc-1; i <= 0; i--)
+    //mutam pointerul in partea de 'sus' a stivei si incepem sa scriem 
+    PVOID currentKernelStackAddress = (char*)PtrOffset(kernelVM, STACK_DEFAULT_SIZE);
+    
+    //folosim un array ca sa retinem adresele fiecarui cuvant pus pe stiva
+    char** parAddressOnStack = (char**)ExAllocatePoolWithTag(PoolAllocateZeroMemory, argc * sizeof(char*), HEAP_TEMP_TAG, 0);
+    //parcurgem argv de la ultimul cuvant
+    for (int i = argc - 1; i >= 0; i--)
     {
-        strncpy(currentStackAddress, argv[i], strlen(argv[i])+1);
-        parAddressOnStack[i] = currentStackAddress;
-        currentStackAddress = PtrOffset(currentStackAddress, strlen(argv[i] + 1)) ;
+        currentKernelStackAddress = (PVOID)PtrDiff(currentKernelStackAddress, ((QWORD)strlen(argv[i]) + 1));
+        crtProcStack = (PVOID)PtrDiff(crtProcStack, ((QWORD)strlen(argv[i]) + 1));
+        //copiem valoarea cuvantului la adresa curenta de memorie din stack
+
+        strncpy(currentKernelStackAddress, argv[i], strlen(argv[i]) + 1);
+        //retinem adresa cuvantului
+        parAddressOnStack[i] = crtProcStack;
+
     }
+    
+    //mutam pointerul la urmatoarea parte din stiva 
+    currentKernelStackAddress = (PVOID)PtrDiff(currentKernelStackAddress, (QWORD)padding);
+    crtProcStack = (PVOID)PtrDiff(crtProcStack, (QWORD)padding);
+    
+    //am ajuns la partea de aliniament pe care o completam cu 0 (nu e relevanta valoarea memoriei)
+    memset(currentKernelStackAddress, 0, padding);
 
-    memset(currentStackAddress, 0, padding);
-    currentStackAddress = PtrOffset(currentStackAddress, padding);
-
-    for (int i = argc - 1; i <= 0; i--)
+    //punem in stiva pointerii cuvintelor
+    for (int i = argc - 1; i >= 0; i--)
     {
-        *((char**)currentStackAddress) = parAddressOnStack[i];
-        currentStackAddress = PtrOffset(currentStackAddress, sizeof(parAddressOnStack[i])); 
+        currentKernelStackAddress = (PVOID)PtrDiff(currentKernelStackAddress, sizeof(PVOID));
+        crtProcStack = (PVOID)PtrDiff(crtProcStack, sizeof(PVOID));
+        //punem la adresa curenta de memorie , adresa corespunzatoare cuvantului din argv
+        *(char**)currentKernelStackAddress = parAddressOnStack[i]; // acolesa - fara * - valoare elementului, adica adresa salvata
+
     }
-
-    memset(currentStackAddress, 0, SHADOW_STACK_SIZE);
-    currentStackAddress = PtrOffset(currentStackAddress, SHADOW_STACK_SIZE); 
-
-
-    currentStackAddress = (PVOID)PtrDiff(currentStackAddress, SHADOW_STACK_SIZE+sizeof(char*));
-
-    currentStackAddress = PtrOffset(currentStackAddress, sizeof(char**));
-    *(QWORD*)currentStackAddress = argc;
+    
+    currentKernelStackAddress = (PVOID)PtrDiff(currentKernelStackAddress, SHADOW_STACK_SIZE / 2);
+    crtProcStack = (PVOID)PtrDiff(crtProcStack, SHADOW_STACK_SIZE / 2);
+    //trecem mai departe
 
 
+    //dam adresa primului argv
+    currentKernelStackAddress = (PVOID)PtrDiff(currentKernelStackAddress, sizeof(char**));
+    crtProcStack = (PVOID)PtrDiff(crtProcStack, sizeof(char**));
+
+    *(char**)currentKernelStackAddress = (PVOID)PtrDiff(crtProcStack, SHADOW_STACK_SIZE / 2 + sizeof(char*)); // aici ai pus adresa din KERNEL!!!!
+
+    currentKernelStackAddress = (PVOID)PtrDiff(currentKernelStackAddress, sizeof(QWORD));
+    crtProcStack = (PVOID)PtrDiff(crtProcStack, sizeof(QWORD));
+    // mergem la argc
+    //incarcam valoarea lui argc
+    *(QWORD*)currentKernelStackAddress = argc;
+
+    // acolesa - ai uitat de adresa de RETURN - de fapt nu ai uitat-o, pentru ca tu o faceai cu cmd_size!
+    currentKernelStackAddress = (PVOID)PtrDiff(currentKernelStackAddress, sizeof(QWORD));
+    crtProcStack = (PVOID)PtrDiff(crtProcStack, sizeof(QWORD));
+    *(QWORD*)currentKernelStackAddress = 0;
+
+
+
+
+    //eliberam memoria alocata temporar
     MmuFreeSystemVirtualAddressForUserBuffer(kernelVM);
+    //mutam pointerul la inceputul stack ului
+    
 
-    *ResultingStack = (PVOID)PtrDiff(InitialStack,cmd_size);
+    *ResultingStack = crtProcStack;
     return STATUS_SUCCESS;
 }
 

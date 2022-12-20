@@ -70,7 +70,7 @@ SyscallHandler(
             break;
 
         case SyscallIdFileWrite:
-            status = SyscallFileWrite((UM_HANDLE) pSyscallParameters[0] , (PVOID)pSyscallParameters[1], (QWORD)pSyscallParameters[2], &(QWORD)pSyscallParameters[3]);
+            status = SyscallFileWrite((UM_HANDLE)pSyscallParameters[0], (PVOID)pSyscallParameters[1], (QWORD)pSyscallParameters[2], (QWORD*)pSyscallParameters[3]);
             break;
 
         case SyscallIdProcessExit:
@@ -198,13 +198,23 @@ SyscallFileWrite(
     IN QWORD BytesToWrite,
     OUT QWORD * BytesWritten)
 {
-    UNREFERENCED_PARAMETER(FileHandle);
-    UNREFERENCED_PARAMETER(BytesToWrite); 
-   // UNREFERENCED_PARAMETER(Buffer);
+    if (BytesWritten == NULL) {
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    if (FileHandle == UM_FILE_HANDLE_STDOUT)
+    {
+       
+            LOG("[%s]:[%s]\n", ProcessGetName(NULL), Buffer);
+            *BytesWritten = BytesToWrite;
+            return STATUS_SUCCESS;
+        
+    }
+    else
+    {
+        return STATUS_NOT_IMPLEMENTED;
+    }
     
-        LOG("[%s]:[%s]\n", ProcessGetName(NULL),&Buffer);
-        *BytesWritten = 8;
-        return 0;
 }
     
 
