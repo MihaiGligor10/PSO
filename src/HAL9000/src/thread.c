@@ -10,7 +10,8 @@
 #include "gdtmu.h"
 #include "pe_exports.h"
 
-#define TID_INCREMENT               4
+//threads 1
+#define TID_INCREMENT               -1
 
 #define THREAD_TIME_SLICE           1
 
@@ -47,7 +48,8 @@ _ThreadSystemGetNextTid(
     void
     )
 {
-    static volatile TID __currentTid = 0;
+    //threads 1
+    static volatile TID __currentTid = MAX_QWORD;
 
     return _InterlockedExchangeAdd64(&__currentTid, TID_INCREMENT);
 }
@@ -326,11 +328,15 @@ ThreadCreateEx(
     ASSERT(NULL != pCpu);
 
     status = _ThreadInit(Name, Priority, &pThread, TRUE);
+
+
     if (!SUCCEEDED(status))
     {
         LOG_FUNC_ERROR("_ThreadInit", status);
         return status;
     }
+    //threads 1
+    LOG("Thread [tid = 0x%X] is being created\n", pThread->Id);
 
     ProcessInsertThreadInList(Process, pThread);
 
@@ -413,6 +419,9 @@ ThreadCreateEx(
         ThreadUnblock(pThread);
     }
 
+    //threads 2 
+    pThread->TimesYielded = 0;
+
     *Thread = pThread;
 
     return status;
@@ -488,7 +497,8 @@ ThreadYield(
     _ThreadSchedule();
     ASSERT( !LockIsOwner(&m_threadSystemData.ReadyThreadsLock));
     LOG_TRACE_THREAD("Returned from _ThreadSchedule\n");
-
+    //threads 2 
+    pThread->TimesYielded++;
     CpuIntrSetState(oldState);
 }
 
@@ -617,7 +627,8 @@ ThreadTerminate(
     )
 {
     ASSERT( NULL != Thread );
-
+    //threads 2
+    LOG("Thread[tid = 0x % X] yielded % u times",Thread->TimesYielded);
     // it's not a problem if the thread already finished
     _InterlockedOr(&Thread->Flags, THREAD_FLAG_FORCE_TERMINATE_PENDING );
 }

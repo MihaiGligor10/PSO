@@ -90,6 +90,10 @@ typedef struct _THREAD
     PVOID                   UserStack;
 
     struct _PROCESS*        Process;
+
+    //threads 2
+    QWORD                   TimesYielded;
+
 } THREAD, *PTHREAD;
 
 //******************************************************************************
