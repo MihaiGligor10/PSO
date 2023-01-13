@@ -70,7 +70,7 @@ SyscallHandler(
             break;
 
         case SyscallIdFileWrite:
-            status = SyscallFileWrite((UM_HANDLE) pSyscallParameters[0] , (PVOID)pSyscallParameters[1], (QWORD)pSyscallParameters[2], &(QWORD)pSyscallParameters[3]);
+            status = SyscallFileWrite((UM_HANDLE)pSyscallParameters[0], (PVOID)pSyscallParameters[1], (QWORD)pSyscallParameters[2], (QWORD*)pSyscallParameters[3]);
             break;
 
         case SyscallIdProcessExit:
@@ -193,20 +193,30 @@ SyscallValidateInterface(
 STATUS
 SyscallFileWrite(
     IN UM_HANDLE FileHandle,
-    IN_READS_BYTES(BytesToWrite) 
+    IN_READS_BYTES(BytesToWrite)
     PVOID Buffer,
     IN QWORD BytesToWrite,
-    OUT QWORD * BytesWritten)
+    OUT QWORD* BytesWritten)
 {
-    UNREFERENCED_PARAMETER(FileHandle);
-    UNREFERENCED_PARAMETER(BytesToWrite); 
-   // UNREFERENCED_PARAMETER(Buffer);
-    
-        LOG("[%s]:[%s]\n", ProcessGetName(NULL),&Buffer);
-        *BytesWritten = 8;
-        return 0;
+    if (BytesWritten == NULL) {
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    if (FileHandle == UM_FILE_HANDLE_STDOUT)
+    {
+
+        LOG("[%s]:[%s]\n", ProcessGetName(NULL), Buffer);
+        *BytesWritten = BytesToWrite;
+        return STATUS_SUCCESS;
+
+    }
+    else
+    {
+        return STATUS_NOT_IMPLEMENTED;
+    }
+
 }
-    
+
 
 STATUS
 SyscallProcessGetNumberOfPages(
