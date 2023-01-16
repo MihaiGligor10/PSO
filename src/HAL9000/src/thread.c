@@ -29,7 +29,7 @@ typedef struct _THREAD_SYSTEM_DATA
 {
     LOCK                AllThreadsLock;
 
-    QWORD               TotalNrOfThreads ; 
+    DWORD               TotalNrOfThreads ; 
 
     _Guarded_by_(AllThreadsLock)
     LIST_ENTRY          AllThreadsList;
@@ -141,6 +141,8 @@ ThreadSystemPreinit(
     )
 {
     memzero(&m_threadSystemData, sizeof(THREAD_SYSTEM_DATA));
+    m_threadSystemData.TotalNrOfThreads=0;
+
 
     InitializeListHead(&m_threadSystemData.AllThreadsList);
     LockInit(&m_threadSystemData.AllThreadsLock);
@@ -417,6 +419,8 @@ ThreadCreateEx(
         ThreadUnblock(pThread);
     }
 
+    _InterlockedIncrement(&m_threadSystemData.TotalNrOfThreads);
+
     *Thread = pThread;
 
     return status;
@@ -565,7 +569,8 @@ ThreadExit(
     pThread->State = ThreadStateDying;
     pThread->ExitStatus = ExitStatus;
     ExEventSignal(&pThread->TerminationEvt);
-
+    LOG("Thread 0x%X with name %s just finished \n", pThread->Id, pThread->Name);
+    _InterlockedDecrement(&m_threadSystemData.TotalNrOfThreads);
     ProcessNotifyThreadTermination(pThread);
 
     LockAcquire(&m_threadSystemData.ReadyThreadsLock, &oldState);
@@ -795,6 +800,7 @@ _ThreadInit(
         strcpy(pThread->Name, Name);
 
         pThread->Id = _ThreadSystemGetNextTid();
+        pThread->ParentTID = ThreadGetId(GetCurrentThread());
         pThread->State = ThreadStateBlocked;
         pThread->Priority = Priority;
 
@@ -1252,4 +1258,11 @@ _ThreadKernelFunction(
 
     ThreadExit(exitStatus);
     NOT_REACHED;
+}
+
+QWORD GetTotalNrOfThreads(
+    void
+)
+{
+    return m_threadSystemData.TotalNrOfThreads;
 }

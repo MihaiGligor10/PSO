@@ -36,8 +36,10 @@ typedef struct _THREAD
     REF_COUNT               RefCnt;
 
     struct _THREAD          *Self;
-     
-    TID                     Id;
+
+    TID                     Id; 
+    
+    TID                     ParentTID;
     char*                   Name;
 
     // Currently the thread priority is not used for anything

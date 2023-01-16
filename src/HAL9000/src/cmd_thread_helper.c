@@ -129,6 +129,9 @@ void
 
     ASSERT(NumberOfParameters == 0);
 
+    
+    LOG("There are a total number of %d threads running",GetTotalNrOfThreads());
+    LOG("%7s", "Parent TID|");
     LOG("%7s", "TID|");
     LOG("%20s", "Name|");
     LOG("%5s", "Prio|");
@@ -685,6 +688,7 @@ STATUS
 
     pThread = CONTAINING_RECORD(ListEntry, THREAD, AllList );
 
+    LOG("%6x%c", pThread->ParentTID, '|');
     LOG("%6x%c", pThread->Id, '|');
     LOG("%19s%c", pThread->Name, '|');
     LOG("%4U%c", pThread->Priority, '|');
