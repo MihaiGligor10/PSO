@@ -1,0 +1,427 @@
+diff --git a/postbuild/paths.cmd b/postbuild/paths.cmd
+index cec924b..f462eb0 100644
+--- a/postbuild/paths.cmd
++++ b/postbuild/paths.cmd
+@@ -12,6 +12,7 @@ set PATH_TO_VM_DISK=__EMPTY__
+ set PATH_TO_VM_TOOLS=__EMPTY__
+ set VOL_MOUNT_LETTER=__EMPTY__
+ 
++if _%COMPUTERNAME%_==_DESKTOP-KSBSOAV_ goto config_DESKTOP-KSBSOAV
+ if _%COMPUTERNAME%_==_AGURZOU-DEV-PC_ goto config_AGURZOU-DEV
+ if _%COMPUTERNAME%_==_ALEX-PC_ goto config_ALEX-PC
+ if _%COMPUTERNAME%_==_AGURZOU-LPT_ goto config_AGURZOU-LPT
+@@ -69,4 +70,15 @@ set BOCHS_PATH="c:\Program Files (x86)\Bochs-2.6.8\"
+ 
+ goto end
+ 
++:config_DESKTOP-KSBSOAV
++
++SET PATH_TO_VM_DISK="D:\Faculta\PSO\HAL9000\HAL9000\VM\HAL9000_VM\HAL9000.vmdk"
++SET PATH_TO_VM_TOOLS="C:\Program Files (x86)\VMware\VMware Virtual Disk Development Kit"
++SET PATH_TO_LOG_FILE="D:\Faculta\PSO\HAL9000\HAL9000\VM\HAL9000_VM\HAL9000.log"
++SET PATH_TO_VM_FILE="D:\Faculta\PSO\HAL9000\HAL9000\VM\HAL9000_VM\HAL9000.vmx"
++SET VOL_MOUNT_LETTER="Q:"
++SET PATH_TO_VIX_TOOLS="C:\Program Files (x86)\VMware\VMware Workstation"
++SET PXE_PATH="D:\Faculta\PSO\HAL9000\HAL9000\PXE"
++goto end
++
+ :end
+\ No newline at end of file
+diff --git a/src/HAL9000/headers/cmd_thread_helper.h b/src/HAL9000/headers/cmd_thread_helper.h
+index c2c9f13..c3255ed 100644
+--- a/src/HAL9000/headers/cmd_thread_helper.h
++++ b/src/HAL9000/headers/cmd_thread_helper.h
+@@ -14,3 +14,4 @@ FUNC_GenericCommand CmdRdmsr;
+ FUNC_GenericCommand CmdWrmsr;
+ FUNC_GenericCommand CmdCheckAd;
+ FUNC_GenericCommand CmdSpawnThreads;
++//FUNC_GenericCommand CmdDescendents;
+diff --git a/src/HAL9000/headers/thread_internal.h b/src/HAL9000/headers/thread_internal.h
+index be2588a..02e6cde 100644
+--- a/src/HAL9000/headers/thread_internal.h
++++ b/src/HAL9000/headers/thread_internal.h
+@@ -33,6 +33,12 @@ typedef DWORD           THREAD_FLAGS;
+ 
+ typedef struct _THREAD
+ {
++    PTHREAD                    ParentID;
++
++    QWORD                   CreateTime;
++
++    QWORD                   NrOfDescendants;
++
+     REF_COUNT               RefCnt;
+ 
+     struct _THREAD          *Self;
+@@ -60,6 +66,8 @@ typedef struct _THREAD
+     // List of the threads ready to run
+     LIST_ENTRY              ReadyList;
+ 
++    LIST_ENTRY              TimeList;
++
+     // List of the threads in the same process
+     LIST_ENTRY              ProcessList;
+ 
+@@ -282,3 +290,4 @@ void
+ ThreadSetPriority(
+     IN      THREAD_PRIORITY     NewPriority
+     );
++
+diff --git a/src/HAL9000/src/cmd_basic.c b/src/HAL9000/src/cmd_basic.c
+index 312b097..01bdf1f 100644
+--- a/src/HAL9000/src/cmd_basic.c
++++ b/src/HAL9000/src/cmd_basic.c
+@@ -10,7 +10,7 @@
+ void
+ CmdPrintVolumeInformation(
+     IN      QWORD           NumberOfParameters
+-    )
++)
+ {
+     ASSERT(NumberOfParameters == 0);
+ 
+@@ -27,12 +27,14 @@ CmdPrintVolumeInformation(
+ 
+ #pragma warning(push)
+ 
++//just some comments for lab 1
++
+ // warning C4717: '_CmdInfiniteRecursion': recursive on all control paths, function will cause runtime stack overflow
+ #pragma warning(disable:4717)
+ void
+ CmdInfiniteRecursion(
+     IN      QWORD           NumberOfParameters
+-    )
++)
+ {
+     ASSERT(NumberOfParameters == 0);
+ 
+@@ -43,7 +45,7 @@ CmdInfiniteRecursion(
+ void
+ CmdRtcFail(
+     IN      QWORD           NumberOfParameters
+-    )
++)
+ {
+     char buffer[] = "Alex is a smart boy!\n";
+ 
+@@ -55,7 +57,7 @@ CmdRtcFail(
+ void
+ CmdRangeFail(
+     IN      QWORD           NumberOfParameters
+-    )
++)
+ {
+     ASSERT(NumberOfParameters == 0);
+ 
+@@ -77,7 +79,7 @@ void
+ void
+ (__cdecl CmdLogSetState)(
+     IN      QWORD           NumberOfParameters,
+-    IN      char*           LogState
++    IN      char* LogState
+     )
+ {
+     ASSERT(NumberOfParameters == 1);
+@@ -88,7 +90,7 @@ void
+ void
+ (__cdecl CmdSetLogLevel)(
+     IN      QWORD           NumberOfParameters,
+-    IN      char*           LogLevelString
++    IN      char* LogLevelString
+     )
+ {
+     LOG_LEVEL logLevel;
+@@ -110,7 +112,7 @@ void
+ void
+ (__cdecl CmdSetLogComponents)(
+     IN      QWORD           NumberOfParameters,
+-    IN      char*           LogComponentsString
++    IN      char* LogComponentsString
+     )
+ {
+     LOG_COMPONENT logComponents;
+@@ -152,4 +154,4 @@ void
+     ASSERT(NumberOfParameters == 0);
+ 
+     TestRunAllPerformance();
+-}
++}
+\ No newline at end of file
+diff --git a/src/HAL9000/src/cmd_interpreter.c b/src/HAL9000/src/cmd_interpreter.c
+index d0b254f..6e9b967 100644
+--- a/src/HAL9000/src/cmd_interpreter.c
++++ b/src/HAL9000/src/cmd_interpreter.c
+@@ -105,6 +105,7 @@ static const COMMAND_DEFINITION COMMANDS[] =
+     { "rtcfail", "Causes an RTC check stack to assert", CmdRtcFail, 0, 0},
+     { "rangefail", "Causes a range check failure to assert", CmdRangeFail, 0, 0},
+     { "bitecookie", "Causes a GS cookie corruption to assert", CmdBiteCookie, 0, 0},
++   // { "testdescendents", "test the implementation to descendents", CmdDescendents, 0, 0},
+ 
+     { "help", "Displays this help menu", _CmdPrintHelp, 0, 0}
+ };
+diff --git a/src/HAL9000/src/cmd_thread_helper.c b/src/HAL9000/src/cmd_thread_helper.c
+index f794c95..a032b11 100644
+--- a/src/HAL9000/src/cmd_thread_helper.c
++++ b/src/HAL9000/src/cmd_thread_helper.c
+@@ -773,5 +773,82 @@ STATUS
+ 
+     return STATUS_SUCCESS;
+ }
++/*
++STATUS
++TFE(
++    IN_OPT PVOID Context
++) {
++    UNREFERENCED_PARAMETER(Context);
++    return STATUS_SUCCESS;
++}
++
++STATUS
++TF1(
++    IN_OPT PVOID Context
++) {
++
++    UNREFERENCED_PARAMETER(Context);
++    PTHREAD t;
++
++    ThreadCreate("a1", ThreadPriorityDefault, TFE, NULL, &t);
++    ThreadCreate("a2", ThreadPriorityDefault, TFE, NULL, &t);
++    ThreadCreate("a3", ThreadPriorityDefault, TFE, NULL, &t);
++    ThreadCreate("a4", ThreadPriorityDefault, TFE, NULL, &t);
++    ThreadCreate("a5", ThreadPriorityDefault, TFE, NULL, &t);
++    ThreadCreate("a6", ThreadPriorityDefault, TFE, NULL, &t);
++    ThreadCreate("a7", ThreadPriorityDefault, TFE, NULL, &t);
++    ThreadCreate("a8", ThreadPriorityDefault, TFE, NULL, &t);
++    ThreadCreate("a9", ThreadPriorityDefault, TFE, NULL, &t);
++    ThreadCreate("a10", ThreadPriorityDefault, TFE, NULL, &t);
++
++    return STATUS_SUCCESS;
++
++}
++
++STATUS
++TF3(
++    IN_OPT PVOID Context
++) {
++    UNREFERENCED_PARAMETER(Context);
++    PTHREAD t;
++
++    ThreadCreate("b2", ThreadPriorityDefault, TFE, NULL, &t);
++
++    return STATUS_SUCCESS;
++}
++
++STATUS
++TF2(
++    IN_OPT PVOID Context
++) {
++    UNREFERENCED_PARAMETER(Context);
++    PTHREAD t;
++
++    ThreadCreate("b1", ThreadPriorityDefault, TF3, NULL, &t);
++
++    return STATUS_SUCCESS;
++}
++
++
++
++
++void
++(__cdecl CmdDescendents)(
++    IN      QWORD           NumberOfParameters
++    )
++{
++    ASSERT(NumberOfParameters == 0);
++    //UNREFERENCED_PARAMETER(Context);
++    PTHREAD t1;
++    ThreadCreate("a", ThreadPriorityDefault, TF1, NULL, &t1);
++    PTHREAD t2;
++    ThreadCreate("b", ThreadPriorityDefault, TF2, NULL, &t2);
++    PTHREAD t3;
++    ThreadCreate("c", ThreadPriorityDefault, TFE, NULL, &t3);
++
++   
++
++}
++*/
+ 
+ #pragma warning(pop)
+diff --git a/src/HAL9000/src/cpumu.c b/src/HAL9000/src/cpumu.c
+index 82fe2ec..bfcb070 100644
+--- a/src/HAL9000/src/cpumu.c
++++ b/src/HAL9000/src/cpumu.c
+@@ -120,12 +120,14 @@ _CpuMuCollectExtendedInformation(
+ // However, as not to confuse people by updating the `THREAD` structure after the semester has started this is the current solution
+ typedef struct _DUMMY_THREAD
+ {
++    
++    //QWORD                   CreateTime;
+     REF_COUNT               RefCnt;
+-
++    
+     struct _THREAD* Self;
+ } DUMMY_THREAD;
+-static_assert(sizeof(DUMMY_THREAD) == FIELD_OFFSET(THREAD, Id) && FIELD_OFFSET(DUMMY_THREAD, Self) == FIELD_OFFSET(THREAD, Self),
+-    "Safety measure, if someone modified the THREAD structure we may need to modify this DUMMY_THREAD as well");
++//static_assert(sizeof(DUMMY_THREAD) == FIELD_OFFSET(THREAD, Id) && FIELD_OFFSET(DUMMY_THREAD, Self) == FIELD_OFFSET(THREAD, Self),
++  // "Safety measure, if someone modified the THREAD structure we may need to modify this DUMMY_THREAD as well");
+ 
+ // mark .Self as NULL such that GetCurrentThread will return always NULL until we setup the first real thread later in the boot
+ // set up both for dummy CPU and for the real CPU structure until threading system is initialized
+diff --git a/src/HAL9000/src/thread.c b/src/HAL9000/src/thread.c
+index b311f0c..16e4bff 100644
+--- a/src/HAL9000/src/thread.c
++++ b/src/HAL9000/src/thread.c
+@@ -9,6 +9,7 @@
+ #include "isr.h"
+ #include "gdtmu.h"
+ #include "pe_exports.h"
++#include "iomu.h"
+ 
+ #define TID_INCREMENT               4
+ 
+@@ -36,6 +37,12 @@ typedef struct _THREAD_SYSTEM_DATA
+ 
+     _Guarded_by_(ReadyThreadsLock)
+     LIST_ENTRY          ReadyThreadsList;
++
++    LOCK OrderedByTimeLock;
++
++    _Guarded_by_(OrderedByTimeLock)
++    LIST_ENTRY OrderedByTimeList;
++
+ } THREAD_SYSTEM_DATA, *PTHREAD_SYSTEM_DATA;
+ 
+ static THREAD_SYSTEM_DATA m_threadSystemData;
+@@ -145,6 +152,9 @@ ThreadSystemPreinit(
+ 
+     InitializeListHead(&m_threadSystemData.ReadyThreadsList);
+     LockInit(&m_threadSystemData.ReadyThreadsLock);
++
++    InitializeListHead(&m_threadSystemData.OrderedByTimeList);
++    LockInit(&m_threadSystemData.OrderedByTimeLock);
+ }
+ 
+ STATUS
+@@ -690,6 +700,50 @@ ThreadExecuteForEachThreadEntry(
+     return status;
+ }
+ 
++
++
++INT64 compare_and_return_result(
++    
++    QWORD a, 
++    QWORD b
++) {
++    if (a < b) {
++        return 1;
++    }
++    else if (a == b) {
++        return 1;
++    }
++    else {
++        return -1;
++    }
++
++}
++
++
++INT64 ThreadCompareTimeList(
++IN PLIST_ENTRY a,
++IN PLIST_ENTRY b,
++IN PVOID context)
++{
++    UNREFERENCED_PARAMETER(context);
++    PTHREAD aux1;
++    PTHREAD aux2;
++    aux1 = CONTAINING_RECORD(a, THREAD, TimeList);
++    aux2 = CONTAINING_RECORD(b, THREAD, TimeList);
++
++    QWORD nr1;
++    QWORD nr2;
++
++    nr1 = aux1->CreateTime;
++    nr2 = aux1->CreateTime;
++
++    return compare_and_return_result(nr1, nr2);
++
++}
++
++
++
++
+ void
+ SetCurrentThread(
+     IN      PTHREAD     Thread
+@@ -793,12 +847,35 @@ _ThreadInit(
+         pThread->Id = _ThreadSystemGetNextTid();
+         pThread->State = ThreadStateBlocked;
+         pThread->Priority = Priority;
++        pThread->NrOfDescendants = 0;
++
++        if (pThread->Id == 0)
++        {
++            pThread->ParentID = NULL;
++        }
++        else
++        {
++            pThread->ParentID = GetCurrentThread();
++            PTHREAD itr = pThread->ParentID;
++            while (itr->ParentID != NULL)
++            {
++                itr->NrOfDescendants++;
++                itr = itr->ParentID;
++            }
++        }
++
++
++        pThread->CreateTime = IomuGetSystemTimeUs();
+ 
+         LockInit(&pThread->BlockLock);
+ 
+         LockAcquire(&m_threadSystemData.AllThreadsLock, &oldIntrState);
+         InsertTailList(&m_threadSystemData.AllThreadsList, &pThread->AllList);
+         LockRelease(&m_threadSystemData.AllThreadsLock, oldIntrState);
++
++        LockAcquire(&m_threadSystemData.OrderedByTimeLock, &oldIntrState);
++        InsertOrderedList(&m_threadSystemData.OrderedByTimeList, &pThread->TimeList, ThreadCompareTimeList,NULL);
++        LockRelease(&m_threadSystemData.OrderedByTimeLock, oldIntrState);
+     }
+     __finally
+     {
+@@ -1191,6 +1268,18 @@ _ThreadDestroy(
+     RemoveEntryList(&pThread->AllList);
+     LockRelease(&m_threadSystemData.AllThreadsLock, oldState);
+ 
++    LockAcquire(&m_threadSystemData.OrderedByTimeLock, &oldState);
++    RemoveEntryList(&pThread->TimeList);
++    LockRelease(&m_threadSystemData.OrderedByTimeLock, oldState);
++
++
++    PTHREAD itr = pThread->ParentID;
++    while (itr->ParentID != NULL)
++    {
++        itr->NrOfDescendants--;
++        itr = itr->ParentID;
++    }
++
+     // This must be done before removing the thread from the process list, else
+     // this may be the last thread and the process VAS will be freed by the time
+     // ProcessRemoveThreadFromList - this function also dereferences the process
+diff --git a/src/shared/kernel/thread.h b/src/shared/kernel/thread.h
+index acc7153..4891998 100644
+--- a/src/shared/kernel/thread.h
++++ b/src/shared/kernel/thread.h
+@@ -119,3 +119,9 @@ THREAD_PRIORITY
+ ThreadGetPriority(
+     IN_OPT  PTHREAD             Thread
+     );
++
++/*
++STATUS
++ThreadDesc(
++    IN_OPT PVOID Context
++);*/
+\ No newline at end of file

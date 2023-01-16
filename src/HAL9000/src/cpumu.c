@@ -26,7 +26,7 @@ typedef struct _CPUMU_DATA
     CPUID_EXTENDED_CPUID_INFORMATION                ExtendedCpuidInformation;
     CPUID_EXTENDED_FEATURE_INFORMATION              ExtendedFeatureInformation;
     CPUID_EXTENDED_STATE_ENUMERATION_MAIN_LEAF      ExtendedStateMainLeaf;
-} CPUMU_DATA, *PCPMU_DATA;
+} CPUMU_DATA, * PCPMU_DATA;
 
 static CPUMU_DATA m_cpuMuData;
 
@@ -34,14 +34,14 @@ static
 void
 _CpuValidateCurrentCpu(
     void
-    );
+);
 
 static
 __forceinline
 void
 _CpuActivateAvailableFeatures(
     void
-    )
+)
 {
     QWORD cr4FlagsToActivate;
     QWORD eferFlagsToActivate;
@@ -69,9 +69,9 @@ static
 void
 _CpuMuCollectBasicInformation(
     void
-    )
+)
 {
-    __cpuid((int*) &m_cpuMuData.BasicInformation, CpuidIdxBasicInformation);
+    __cpuid((int*)&m_cpuMuData.BasicInformation, CpuidIdxBasicInformation);
 
     if (m_cpuMuData.BasicInformation.MaxValueForBasicInfo >= CpuidIdxFeatureInformation)
     {
@@ -99,13 +99,13 @@ static
 void
 _CpuMuCollectExtendedInformation(
     void
-    )
+)
 {
-    __cpuid((int*) &m_cpuMuData.ExtendedCpuidInformation, CpuidIdxExtendedMaxFunction);
+    __cpuid((int*)&m_cpuMuData.ExtendedCpuidInformation, CpuidIdxExtendedMaxFunction);
 
     if (m_cpuMuData.ExtendedCpuidInformation.MaxValueForExtendedInfo >= CpuidIdxExtendedFeatureInformation)
     {
-        __cpuid((int*) &m_cpuMuData.ExtendedFeatureInformation, CpuidIdxExtendedFeatureInformation);
+        __cpuid((int*)&m_cpuMuData.ExtendedFeatureInformation, CpuidIdxExtendedFeatureInformation);
     }
 }
 
@@ -120,14 +120,12 @@ _CpuMuCollectExtendedInformation(
 // However, as not to confuse people by updating the `THREAD` structure after the semester has started this is the current solution
 typedef struct _DUMMY_THREAD
 {
-    
-    //QWORD                   CreateTime;
     REF_COUNT               RefCnt;
-    
+
     struct _THREAD* Self;
 } DUMMY_THREAD;
-//static_assert(sizeof(DUMMY_THREAD) == FIELD_OFFSET(THREAD, Id) && FIELD_OFFSET(DUMMY_THREAD, Self) == FIELD_OFFSET(THREAD, Self),
-  // "Safety measure, if someone modified the THREAD structure we may need to modify this DUMMY_THREAD as well");
+static_assert(sizeof(DUMMY_THREAD) == FIELD_OFFSET(THREAD, Id) && FIELD_OFFSET(DUMMY_THREAD, Self) == FIELD_OFFSET(THREAD, Self),
+    "Safety measure, if someone modified the THREAD structure we may need to modify this DUMMY_THREAD as well");
 
 // mark .Self as NULL such that GetCurrentThread will return always NULL until we setup the first real thread later in the boot
 // set up both for dummy CPU and for the real CPU structure until threading system is initialized
@@ -136,7 +134,7 @@ static DUMMY_THREAD __dummySelfThread = { .Self = NULL };
 void
 CpuMuPreinit(
     void
-    )
+)
 {
     static PCPU* __dummySelfCpu = NULL;
 
@@ -160,24 +158,24 @@ CpuMuPreinit(
 void
 CpuMuValidateConfiguration(
     void
-    )
+)
 {
-    ASSERT_INFO( m_cpuMuData.FeatureInformation.edx.APIC, "We cannot wake up APs without APIC!");
+    ASSERT_INFO(m_cpuMuData.FeatureInformation.edx.APIC, "We cannot wake up APs without APIC!");
 
-    ASSERT_INFO( m_cpuMuData.FeatureInformation.edx.MSR, "We cannot do anything without MSRs!");
+    ASSERT_INFO(m_cpuMuData.FeatureInformation.edx.MSR, "We cannot do anything without MSRs!");
 
-    ASSERT_INFO( m_cpuMuData.FeatureInformation.edx.TSC, "We need a way to measure time!");
+    ASSERT_INFO(m_cpuMuData.FeatureInformation.edx.TSC, "We need a way to measure time!");
 
-    ASSERT_INFO( m_cpuMuData.FeatureInformation.edx.PAT, "We need PAT!");
+    ASSERT_INFO(m_cpuMuData.FeatureInformation.edx.PAT, "We need PAT!");
 
-    ASSERT( IA32_EXPECTED_PAT_VALUES == __readmsr(IA32_PAT) );
+    ASSERT(IA32_EXPECTED_PAT_VALUES == __readmsr(IA32_PAT));
 
-    ASSERT_INFO( m_cpuMuData.FeatureInformation.edx.SSE, "We need SFENCE support!");
+    ASSERT_INFO(m_cpuMuData.FeatureInformation.edx.SSE, "We need SFENCE support!");
 
-    ASSERT_INFO( m_cpuMuData.FeatureInformation.edx.SSE2, "We need LFENCE/MFENCE support");
+    ASSERT_INFO(m_cpuMuData.FeatureInformation.edx.SSE2, "We need LFENCE/MFENCE support");
 
 #if INCLUDE_FP_SUPPORT
-    ASSERT_INFO( m_cpuMuData.FeatureInformation.ecx.XSAVE, "We need XSAVE/XRSTOR support");
+    ASSERT_INFO(m_cpuMuData.FeatureInformation.ecx.XSAVE, "We need XSAVE/XRSTOR support");
 
     ASSERT_INFO(IsBooleanFlagOn(
         DWORDS_TO_QWORD(m_cpuMuData.ExtendedStateMainLeaf.Xcr0FeatureSupportHigh, m_cpuMuData.ExtendedStateMainLeaf.Xcr0FeatureSupportLow),
@@ -187,13 +185,13 @@ CpuMuValidateConfiguration(
         DWORDS_TO_QWORD(m_cpuMuData.ExtendedStateMainLeaf.Xcr0FeatureSupportHigh, m_cpuMuData.ExtendedStateMainLeaf.Xcr0FeatureSupportLow));
 #endif
 
-    ASSERT_INFO( m_cpuMuData.ExtendedFeatureInformation.edx.Syscall, "We need SYSCALL/SYSRET support");
+    ASSERT_INFO(m_cpuMuData.ExtendedFeatureInformation.edx.Syscall, "We need SYSCALL/SYSRET support");
 }
 
 STATUS
 CpuMuSetMonitorFilterSize(
     IN          WORD        FilterSize
-    )
+)
 {
     if (!m_cpuMuData.FeatureInformation.ecx.MONITOR)
     {
@@ -211,19 +209,19 @@ CpuMuSetMonitorFilterSize(
         return STATUS_CPU_MONITOR_FILTER_SIZE_TOO_LARGE;
     }
 
-    __writemsr( IA32_MONITOR_FILTER_SIZE_MSR, FilterSize);
+    __writemsr(IA32_MONITOR_FILTER_SIZE_MSR, FilterSize);
 
     return STATUS_SUCCESS;
 }
 
 STATUS
 CpuMuAllocAndInitCpu(
-    OUT_PTR     PPCPU*      PhysicalCpu,
+    OUT_PTR     PPCPU* PhysicalCpu,
     IN _Strict_type_match_
-                APIC_ID     ApicId,
+    APIC_ID     ApicId,
     IN          DWORD       StackSize,
     IN          BYTE        NoOfTssStacks
-    )
+)
 {
     STATUS status;
     PPCPU pPcpu;
@@ -243,7 +241,7 @@ CpuMuAllocAndInitCpu(
     status = CpuMuInitCpu(pPcpu, TRUE);
     if (!SUCCEEDED(status))
     {
-        LOG_FUNC_ERROR("CpuMuInitCpu", status );
+        LOG_FUNC_ERROR("CpuMuInitCpu", status);
         return status;
     }
 
@@ -256,12 +254,12 @@ CpuMuAllocAndInitCpu(
 
 STATUS
 CpuMuAllocCpu(
-    OUT_PTR     PPCPU*      PhysicalCpu,
+    OUT_PTR     PPCPU* PhysicalCpu,
     IN _Strict_type_match_
-                APIC_ID     ApicId,
+    APIC_ID     ApicId,
     IN          DWORD       StackSize,
     IN          BYTE        NumberOfTssStacks
-    )
+)
 {
     STATUS status;
     PCPU* pPcpu;
@@ -270,7 +268,7 @@ CpuMuAllocCpu(
 
     ASSERT(NULL != PhysicalCpu);
     ASSERT(0 != StackSize);
-    ASSERT( NumberOfTssStacks <= NO_OF_IST );
+    ASSERT(NumberOfTssStacks <= NO_OF_IST);
 
     status = STATUS_SUCCESS;
     pPcpu = NULL;
@@ -284,9 +282,9 @@ CpuMuAllocCpu(
 
     pPcpu->Self = pPcpu;
     pPcpu->ApicId = ApicId;
-    pPcpu->LogicalApicId = ( 1U << ApicId );
+    pPcpu->LogicalApicId = (1U << ApicId);
 
-    LOG("APIC ID: 0x%02x, logical ID: 0x%02x\n", pPcpu->ApicId, pPcpu->LogicalApicId );
+    LOG("APIC ID: 0x%02x, logical ID: 0x%02x\n", pPcpu->ApicId, pPcpu->LogicalApicId);
 
     pPcpu->StackTop = MmuAllocStack(StackSize, TRUE, FALSE, NULL);
     if (NULL == pPcpu->StackTop)
@@ -329,11 +327,11 @@ STATUS
 CpuMuInitCpu(
     IN          PPCPU       PhysicalCpu,
     IN          BOOLEAN     ChangeStack
-    )
+)
 {
     STATUS status;
 
-    ASSERT( NULL != PhysicalCpu );
+    ASSERT(NULL != PhysicalCpu);
     _CpuValidateCurrentCpu();
 
     LOG_FUNC_START;
@@ -350,7 +348,7 @@ CpuMuInitCpu(
     // we assume we haven't used more than 1 PAGE of our stack
     if (ChangeStack)
     {
-        LOGPL("Will change to stack: 0x%X\n", PhysicalCpu->StackTop );
+        LOGPL("Will change to stack: 0x%X\n", PhysicalCpu->StackTop);
         CpuMuChangeStack(PhysicalCpu->StackTop);
     }
 
@@ -385,11 +383,11 @@ CpuMuInitCpu(
 void
 CpuMuChangeStack(
     IN          PVOID       NewStack
-    )
+)
 {
     PVOID oldStackBase = (PVOID)AlignAddressUpper(_AddressOfReturnAddress(), PAGE_SIZE);
 
-    ASSERT( NULL != NewStack );
+    ASSERT(NULL != NewStack);
 
     // function needs to be written in assembly, else we cannot know how much
     // we need to copy for the local variables
@@ -406,7 +404,7 @@ CpuMuChangeStack(
 BOOLEAN
 CpuMuIsPcidFeaturePresent(
     void
-    )
+)
 {
     return (m_cpuMuData.FeatureInformation.ecx.PCID == 1);
 }
@@ -414,7 +412,7 @@ CpuMuIsPcidFeaturePresent(
 STATUS
 CpuMuActivateFpuFeatures(
     void
-    )
+)
 {
     return HalSetActiveFpuFeatures(HAL9000_USED_XCR0_FEATURES);
 }
@@ -423,7 +421,7 @@ static
 void
 _CpuValidateCurrentCpu(
     void
-    )
+)
 {
     QWORD cr0;
     QWORD cr4;
