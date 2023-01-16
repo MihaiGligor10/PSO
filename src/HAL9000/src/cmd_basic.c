@@ -10,7 +10,7 @@
 void
 CmdPrintVolumeInformation(
     IN      QWORD           NumberOfParameters
-    )
+)
 {
     ASSERT(NumberOfParameters == 0);
 
@@ -27,12 +27,14 @@ CmdPrintVolumeInformation(
 
 #pragma warning(push)
 
+//just some comments for lab 1
+
 // warning C4717: '_CmdInfiniteRecursion': recursive on all control paths, function will cause runtime stack overflow
 #pragma warning(disable:4717)
 void
 CmdInfiniteRecursion(
     IN      QWORD           NumberOfParameters
-    )
+)
 {
     ASSERT(NumberOfParameters == 0);
 
@@ -43,7 +45,7 @@ CmdInfiniteRecursion(
 void
 CmdRtcFail(
     IN      QWORD           NumberOfParameters
-    )
+)
 {
     char buffer[] = "Alex is a smart boy!\n";
 
@@ -55,7 +57,7 @@ CmdRtcFail(
 void
 CmdRangeFail(
     IN      QWORD           NumberOfParameters
-    )
+)
 {
     ASSERT(NumberOfParameters == 0);
 
@@ -77,7 +79,7 @@ void
 void
 (__cdecl CmdLogSetState)(
     IN      QWORD           NumberOfParameters,
-    IN      char*           LogState
+    IN      char* LogState
     )
 {
     ASSERT(NumberOfParameters == 1);
@@ -88,7 +90,7 @@ void
 void
 (__cdecl CmdSetLogLevel)(
     IN      QWORD           NumberOfParameters,
-    IN      char*           LogLevelString
+    IN      char* LogLevelString
     )
 {
     LOG_LEVEL logLevel;
@@ -110,7 +112,7 @@ void
 void
 (__cdecl CmdSetLogComponents)(
     IN      QWORD           NumberOfParameters,
-    IN      char*           LogComponentsString
+    IN      char* LogComponentsString
     )
 {
     LOG_COMPONENT logComponents;

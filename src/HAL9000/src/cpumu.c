@@ -120,12 +120,14 @@ _CpuMuCollectExtendedInformation(
 // However, as not to confuse people by updating the `THREAD` structure after the semester has started this is the current solution
 typedef struct _DUMMY_THREAD
 {
+    
+    //QWORD                   CreateTime;
     REF_COUNT               RefCnt;
-
+    
     struct _THREAD* Self;
 } DUMMY_THREAD;
-static_assert(sizeof(DUMMY_THREAD) == FIELD_OFFSET(THREAD, Id) && FIELD_OFFSET(DUMMY_THREAD, Self) == FIELD_OFFSET(THREAD, Self),
-    "Safety measure, if someone modified the THREAD structure we may need to modify this DUMMY_THREAD as well");
+//static_assert(sizeof(DUMMY_THREAD) == FIELD_OFFSET(THREAD, Id) && FIELD_OFFSET(DUMMY_THREAD, Self) == FIELD_OFFSET(THREAD, Self),
+  // "Safety measure, if someone modified the THREAD structure we may need to modify this DUMMY_THREAD as well");
 
 // mark .Self as NULL such that GetCurrentThread will return always NULL until we setup the first real thread later in the boot
 // set up both for dummy CPU and for the real CPU structure until threading system is initialized

@@ -9,6 +9,7 @@
 #include "isr.h"
 #include "gdtmu.h"
 #include "pe_exports.h"
+#include "iomu.h"
 
 #define TID_INCREMENT               4
 
@@ -36,6 +37,12 @@ typedef struct _THREAD_SYSTEM_DATA
 
     _Guarded_by_(ReadyThreadsLock)
     LIST_ENTRY          ReadyThreadsList;
+
+    LOCK OrderedByTimeLock;
+
+    _Guarded_by_(OrderedByTimeLock)
+    LIST_ENTRY OrderedByTimeList;
+
 } THREAD_SYSTEM_DATA, *PTHREAD_SYSTEM_DATA;
 
 static THREAD_SYSTEM_DATA m_threadSystemData;
@@ -145,6 +152,9 @@ ThreadSystemPreinit(
 
     InitializeListHead(&m_threadSystemData.ReadyThreadsList);
     LockInit(&m_threadSystemData.ReadyThreadsLock);
+
+    InitializeListHead(&m_threadSystemData.OrderedByTimeList);
+    LockInit(&m_threadSystemData.OrderedByTimeLock);
 }
 
 STATUS
@@ -690,6 +700,50 @@ ThreadExecuteForEachThreadEntry(
     return status;
 }
 
+
+
+INT64 compare_and_return_result(
+    
+    QWORD a, 
+    QWORD b
+) {
+    if (a < b) {
+        return 1;
+    }
+    else if (a == b) {
+        return 1;
+    }
+    else {
+        return -1;
+    }
+
+}
+
+
+INT64 ThreadCompareTimeList(
+IN PLIST_ENTRY a,
+IN PLIST_ENTRY b,
+IN PVOID context)
+{
+    UNREFERENCED_PARAMETER(context);
+    PTHREAD aux1;
+    PTHREAD aux2;
+    aux1 = CONTAINING_RECORD(a, THREAD, TimeList);
+    aux2 = CONTAINING_RECORD(b, THREAD, TimeList);
+
+    QWORD nr1;
+    QWORD nr2;
+
+    nr1 = aux1->CreateTime;
+    nr2 = aux1->CreateTime;
+
+    return compare_and_return_result(nr1, nr2);
+
+}
+
+
+
+
 void
 SetCurrentThread(
     IN      PTHREAD     Thread
@@ -793,12 +847,35 @@ _ThreadInit(
         pThread->Id = _ThreadSystemGetNextTid();
         pThread->State = ThreadStateBlocked;
         pThread->Priority = Priority;
+        pThread->NrOfDescendants = 0;
+
+        if (pThread->Id == 0)
+        {
+            pThread->ParentID = NULL;
+        }
+        else
+        {
+            pThread->ParentID = GetCurrentThread();
+            PTHREAD itr = pThread->ParentID;
+            while (itr->ParentID != NULL)
+            {
+                itr->NrOfDescendants++;
+                itr = itr->ParentID;
+            }
+        }
+
+
+        pThread->CreateTime = IomuGetSystemTimeUs();
 
         LockInit(&pThread->BlockLock);
 
         LockAcquire(&m_threadSystemData.AllThreadsLock, &oldIntrState);
         InsertTailList(&m_threadSystemData.AllThreadsList, &pThread->AllList);
         LockRelease(&m_threadSystemData.AllThreadsLock, oldIntrState);
+
+        LockAcquire(&m_threadSystemData.OrderedByTimeLock, &oldIntrState);
+        InsertOrderedList(&m_threadSystemData.OrderedByTimeList, &pThread->TimeList, ThreadCompareTimeList,NULL);
+        LockRelease(&m_threadSystemData.OrderedByTimeLock, oldIntrState);
     }
     __finally
     {
@@ -1190,6 +1267,18 @@ _ThreadDestroy(
     LockAcquire(&m_threadSystemData.AllThreadsLock, &oldState);
     RemoveEntryList(&pThread->AllList);
     LockRelease(&m_threadSystemData.AllThreadsLock, oldState);
+
+    LockAcquire(&m_threadSystemData.OrderedByTimeLock, &oldState);
+    RemoveEntryList(&pThread->TimeList);
+    LockRelease(&m_threadSystemData.OrderedByTimeLock, oldState);
+
+
+    PTHREAD itr = pThread->ParentID;
+    while (itr->ParentID != NULL)
+    {
+        itr->NrOfDescendants--;
+        itr = itr->ParentID;
+    }
 
     // This must be done before removing the thread from the process list, else
     // this may be the last thread and the process VAS will be freed by the time

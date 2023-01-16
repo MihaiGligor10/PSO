@@ -119,3 +119,9 @@ THREAD_PRIORITY
 ThreadGetPriority(
     IN_OPT  PTHREAD             Thread
     );
+
+/*
+STATUS
+ThreadDesc(
+    IN_OPT PVOID Context
+);*/

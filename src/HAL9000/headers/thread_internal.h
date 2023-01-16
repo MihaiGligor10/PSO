@@ -33,6 +33,12 @@ typedef DWORD           THREAD_FLAGS;
 
 typedef struct _THREAD
 {
+    PTHREAD                    ParentID;
+
+    QWORD                   CreateTime;
+
+    QWORD                   NrOfDescendants;
+
     REF_COUNT               RefCnt;
 
     struct _THREAD          *Self;
@@ -59,6 +65,8 @@ typedef struct _THREAD
 
     // List of the threads ready to run
     LIST_ENTRY              ReadyList;
+
+    LIST_ENTRY              TimeList;
 
     // List of the threads in the same process
     LIST_ENTRY              ProcessList;
@@ -282,3 +290,4 @@ void
 ThreadSetPriority(
     IN      THREAD_PRIORITY     NewPriority
     );
+

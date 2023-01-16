@@ -773,5 +773,82 @@ STATUS
 
     return STATUS_SUCCESS;
 }
+/*
+STATUS
+TFE(
+    IN_OPT PVOID Context
+) {
+    UNREFERENCED_PARAMETER(Context);
+    return STATUS_SUCCESS;
+}
+
+STATUS
+TF1(
+    IN_OPT PVOID Context
+) {
+
+    UNREFERENCED_PARAMETER(Context);
+    PTHREAD t;
+
+    ThreadCreate("a1", ThreadPriorityDefault, TFE, NULL, &t);
+    ThreadCreate("a2", ThreadPriorityDefault, TFE, NULL, &t);
+    ThreadCreate("a3", ThreadPriorityDefault, TFE, NULL, &t);
+    ThreadCreate("a4", ThreadPriorityDefault, TFE, NULL, &t);
+    ThreadCreate("a5", ThreadPriorityDefault, TFE, NULL, &t);
+    ThreadCreate("a6", ThreadPriorityDefault, TFE, NULL, &t);
+    ThreadCreate("a7", ThreadPriorityDefault, TFE, NULL, &t);
+    ThreadCreate("a8", ThreadPriorityDefault, TFE, NULL, &t);
+    ThreadCreate("a9", ThreadPriorityDefault, TFE, NULL, &t);
+    ThreadCreate("a10", ThreadPriorityDefault, TFE, NULL, &t);
+
+    return STATUS_SUCCESS;
+
+}
+
+STATUS
+TF3(
+    IN_OPT PVOID Context
+) {
+    UNREFERENCED_PARAMETER(Context);
+    PTHREAD t;
+
+    ThreadCreate("b2", ThreadPriorityDefault, TFE, NULL, &t);
+
+    return STATUS_SUCCESS;
+}
+
+STATUS
+TF2(
+    IN_OPT PVOID Context
+) {
+    UNREFERENCED_PARAMETER(Context);
+    PTHREAD t;
+
+    ThreadCreate("b1", ThreadPriorityDefault, TF3, NULL, &t);
+
+    return STATUS_SUCCESS;
+}
+
+
+
+
+void
+(__cdecl CmdDescendents)(
+    IN      QWORD           NumberOfParameters
+    )
+{
+    ASSERT(NumberOfParameters == 0);
+    //UNREFERENCED_PARAMETER(Context);
+    PTHREAD t1;
+    ThreadCreate("a", ThreadPriorityDefault, TF1, NULL, &t1);
+    PTHREAD t2;
+    ThreadCreate("b", ThreadPriorityDefault, TF2, NULL, &t2);
+    PTHREAD t3;
+    ThreadCreate("c", ThreadPriorityDefault, TFE, NULL, &t3);
+
+   
+
+}
+*/
 
 #pragma warning(pop)
